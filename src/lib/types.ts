@@ -10,6 +10,11 @@ export interface Group {
   nome: string;
   ativo: boolean;
   criado_em: string;
+  /** Conexão dona do grupo. Nulo em grupos legados, cadastrados antes das conexões. */
+  connection_id?: string | null;
+  participantes?: number | null;
+  foto_url?: string | null;
+  sincronizado_em?: string | null;
 }
 
 export interface Audience {
@@ -59,6 +64,11 @@ export interface Campaign {
   mencionar_todos: boolean;
   audience_id: string | null;
   group_ids: string[] | null;
+  /** Para quem a campanha vai: os grupos cadastrados ou os contatos de uma lista. */
+  alvo: 'grupos' | 'contatos';
+  list_ids: string[] | null;
+  /** Número que dispara. Nulo = o motor usa a primeira conexão conectada. */
+  connection_id: string | null;
   enviar_em: string | null;
   status: CampaignStatus;
   /** Preenchido quando a campanha foi materializada por uma recorrência semanal. */
@@ -81,7 +91,276 @@ export interface Recorrencia {
   mencionar_todos: boolean;
   audience_id: string | null;
   group_ids: string[] | null;
+  connection_id?: string | null;
   ativo: boolean;
   criado_em: string;
   atualizado_em: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// Conexões de WhatsApp (Evolution API)
+// ─────────────────────────────────────────────────────────────────────────────────
+
+export type ConnectionStatus = 'desconectada' | 'conectando' | 'conectada' | 'erro';
+
+export interface Connection {
+  id: string;
+  nome: string;
+  provider: 'evolution';
+  instance_name: string;
+  numero: string | null;
+  profile_name: string | null;
+  profile_pic_url: string | null;
+  status: ConnectionStatus;
+  delay_min_seg: number;
+  delay_max_seg: number;
+  limite_diario: number;
+  ativo: boolean;
+  proximo_envio_em: string | null;
+  ultima_sincronizacao: string | null;
+  ultimo_erro: string | null;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// Fila de envio do WhatsApp
+// ─────────────────────────────────────────────────────────────────────────────────
+
+export type RecipientStatus =
+  | 'pendente' | 'enviando' | 'enviado' | 'entregue' | 'lido' | 'falha' | 'cancelado';
+
+export interface CampaignRecipient {
+  id: string;
+  campaign_id: string;
+  connection_id: string | null;
+  destino: string;
+  destino_nome: string | null;
+  destino_tipo: 'grupo' | 'contato';
+  contact_id: string | null;
+  status: RecipientStatus;
+  tentativas: number;
+  provider_message_id: string | null;
+  erro: string | null;
+  enviado_em: string | null;
+  entregue_em: string | null;
+  lido_em: string | null;
+  respondido_em: string | null;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// Contatos e listas (compartilhados pelos dois canais)
+// ─────────────────────────────────────────────────────────────────────────────────
+
+export type StatusEmail = 'ativo' | 'descadastrado' | 'bounce' | 'spam';
+export type StatusWhatsApp = 'ativo' | 'descadastrado' | 'invalido';
+
+export interface Contact {
+  id: string;
+  nome: string | null;
+  email: string | null;
+  telefone: string | null;
+  empresa: string | null;
+  tags: string[];
+  status_email: StatusEmail;
+  status_whatsapp: StatusWhatsApp;
+  origem: string | null;
+  campos: Record<string, string>;
+  descadastrado_em: string | null;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export interface Lista {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  cor: string;
+  criado_em: string;
+  atualizado_em: string;
+  /** Preenchido pelas rotas que pedem a contagem junto. */
+  total?: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// E-mail marketing
+// ─────────────────────────────────────────────────────────────────────────────────
+
+export type EmailCampaignStatus =
+  | 'rascunho' | 'agendada' | 'enviando' | 'enviada' | 'cancelada' | 'erro';
+
+export interface EmailCampaign {
+  id: string;
+  nome: string;
+  assunto: string;
+  assunto_b: string | null;
+  preheader: string | null;
+  remetente_nome: string;
+  remetente_email: string;
+  responder_para: string | null;
+  html: string;
+  texto: string | null;
+  list_ids: string[];
+  tags: string[];
+  status: EmailCampaignStatus;
+  enviar_em: string | null;
+  enviado_em: string | null;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export type EmailRecipientStatus =
+  | 'pendente' | 'enviando' | 'enviado' | 'entregue' | 'aberto' | 'clicado'
+  | 'bounce' | 'spam' | 'falha' | 'cancelado';
+
+export interface EmailRecipient {
+  id: string;
+  campaign_id: string;
+  contact_id: string | null;
+  email: string;
+  nome: string | null;
+  token: string;
+  variante: 'A' | 'B';
+  status: EmailRecipientStatus;
+  tentativas: number;
+  provider_message_id: string | null;
+  erro: string | null;
+  enviado_em: string | null;
+  entregue_em: string | null;
+  primeiro_aberto_em: string | null;
+  ultimo_aberto_em: string | null;
+  primeiro_clique_em: string | null;
+  aberturas: number;
+  cliques: number;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  assunto_sugerido: string | null;
+  html: string;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// KPIs (espelham as visões de 0010_kpis.sql)
+// ─────────────────────────────────────────────────────────────────────────────────
+
+export interface CampaignKpi {
+  campaign_id: string;
+  nome: string;
+  categoria: CategoriaKey;
+  status: CampaignStatus;
+  alvo: 'grupos' | 'contatos';
+  connection_id: string | null;
+  enviar_em: string | null;
+  enviado_em: string | null;
+  destinatarios: number;
+  enviados: number;
+  entregues: number;
+  lidos: number;
+  respostas: number;
+  falhas: number;
+  pendentes: number;
+  taxa_entrega: number | null;
+  taxa_leitura: number | null;
+  taxa_resposta: number | null;
+  taxa_falha: number | null;
+  seg_ate_entrega_mediana: number | null;
+  seg_ate_leitura_mediana: number | null;
+  primeiro_envio_em: string | null;
+  ultimo_envio_em: string | null;
+}
+
+export interface EmailKpi {
+  campaign_id: string;
+  nome: string;
+  assunto: string;
+  status: EmailCampaignStatus;
+  enviar_em: string | null;
+  enviado_em: string | null;
+  destinatarios: number;
+  enviados: number;
+  entregues: number;
+  abriram: number;
+  clicaram: number;
+  aberturas_totais: number;
+  cliques_totais: number;
+  bounces: number;
+  spam: number;
+  falhas: number;
+  pendentes: number;
+  taxa_entrega: number | null;
+  taxa_abertura: number | null;
+  taxa_clique: number | null;
+  ctor: number | null;
+  taxa_bounce: number | null;
+  taxa_spam: number | null;
+  seg_ate_abertura_mediana: number | null;
+}
+
+export interface DestinoKpi {
+  destino: string;
+  destino_nome: string | null;
+  destino_tipo: 'grupo' | 'contato';
+  recebidas: number;
+  entregues: number;
+  lidas: number;
+  respostas: number;
+  falhas: number;
+  taxa_leitura: number | null;
+  ultimo_envio_em: string | null;
+}
+
+export interface KpiDiario {
+  dia: string;
+  canal: 'whatsapp' | 'email';
+  enviados: number;
+  entregues: number;
+  engajados: number;
+  acoes: number;
+  falhas: number;
+}
+
+export interface EmailLinkKpi {
+  campaign_id: string;
+  url: string;
+  cliques: number;
+  pessoas: number;
+  primeiro_clique_em: string;
+}
+
+export interface EmailAbKpi {
+  campaign_id: string;
+  variante: 'A' | 'B';
+  assunto: string | null;
+  destinatarios: number;
+  entregues: number;
+  abriram: number;
+  clicaram: number;
+  taxa_abertura: number | null;
+  taxa_clique: number | null;
+}
+
+export interface ContatoEngajamento {
+  contact_id: string;
+  nome: string | null;
+  email: string | null;
+  telefone: string | null;
+  tags: string[];
+  status_email: StatusEmail;
+  status_whatsapp: StatusWhatsApp;
+  emails_recebidos: number;
+  emails_abertos: number;
+  emails_clicados: number;
+  whatsapp_recebidas: number;
+  whatsapp_lidas: number;
+  ultima_interacao: string | null;
+  nota_engajamento: number;
 }

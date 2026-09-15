@@ -9,6 +9,7 @@ import {
   type AudienceMode,
 } from '@/components/AudiencePicker';
 import { Field, SegButton, inputCls } from '@/components/ui';
+import { useRelogio } from '@/lib/useRelogio';
 import { CATEGORIAS, categoriaLabel, type CategoriaKey } from '@/lib/categories';
 import {
   computeStepEnviarEm,
@@ -138,11 +139,13 @@ export function SequenceDispatchClient({ sequence }: { sequence: Sequence }) {
     setExpanded((e) => ({ ...e, [id]: !e[id] }));
   }
 
-  // Per-aula preview: for rows with data+hora filled, compute every step's send
-  // time + rendered message. Recomputed on every keystroke; "now" is captured
-  // fresh so past-step badges stay honest.
+  // Prévia por aula: para as linhas com data+hora preenchidas, calcula o horário e a
+  // mensagem de cada passo. "Agora" vem de um relógio que é estado de verdade e anda de
+  // minuto em minuto — chamar Date.now() aqui dentro quebraria a pureza da renderização
+  // e o selo de "passo já vencido" poderia congelar sem ninguém perceber.
+  const agora = useRelogio();
   const aulaPreviews = useMemo(() => {
-    const now = Date.now();
+    const now = agora;
     return aulas.map((row) => {
       const dataOk = DATA_RE.test(row.data);
       const horaOk = HORA_RE.test(row.hora);
@@ -164,7 +167,7 @@ export function SequenceDispatchClient({ sequence }: { sequence: Sequence }) {
       });
       return { row, dataOk, horaOk, temaOk, filled, items };
     });
-  }, [aulas, steps]);
+  }, [aulas, steps, agora]);
 
   const filledPreviews = aulaPreviews.filter((p) => p.filled);
   const totalFuture = filledPreviews.reduce(
