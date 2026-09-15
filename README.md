@@ -78,9 +78,10 @@ destinatário duas vezes.
 
 ### 1. Banco
 
-Crie um projeto no [Supabase](https://supabase.com) e rode as migrations de
-`supabase/migrations/` **em ordem**, da `0001` à `0012` (SQL Editor, uma de cada vez,
-ou via `supabase db push`).
+Crie um projeto no [Supabase](https://supabase.com) e monte o banco. O caminho mais
+rápido é colar **`supabase/schema-completo.sql`** inteiro no SQL Editor e rodar — é o
+conteúdo das 12 migrations concatenado, na ordem. (Quem preferir pode rodar
+`supabase/migrations/` uma a uma, da `0001` à `0012`, ou usar `supabase db push`.)
 
 Crie também um bucket público chamado `campanhas-midia` (Storage → New bucket → Public).
 
