@@ -21,12 +21,13 @@ export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (ehPublico(pathname)) return NextResponse.next();
+
   // Sem APP_USERS o app roda aberto (útil para subir e testar). A tela de
   // configurações mostra um alerta enquanto estiver assim.
-  if (!loginExigido()) return NextResponse.next();
+  if (!loginExigido()) return semBanco(req, pathname) ?? NextResponse.next();
 
   const sessao = lerSessao(req.cookies.get(COOKIE_SESSAO)?.value);
-  if (sessao) return NextResponse.next();
+  if (sessao) return semBanco(req, pathname) ?? NextResponse.next();
 
   // Requisição de API responde 401 em JSON; a tela do cliente entende e redireciona.
   // Devolver o HTML do login para um `fetch` faria o erro aparecer como "JSON inválido".
@@ -38,6 +39,32 @@ export function proxy(req: NextRequest) {
   destino.pathname = '/login';
   // Guarda para onde a pessoa ia, e o login devolve ela ao mesmo lugar.
   destino.search = `?de=${encodeURIComponent(pathname)}`;
+  return NextResponse.redirect(destino);
+}
+
+/**
+ * Banco não configurado: leva para o diagnóstico em vez de deixar a tela quebrar.
+ *
+ * É o estado de quem acabou de clonar o projeto, e sem isto TODA tela morre com um
+ * stack trace de "Missing NEXT_PUBLIC_SUPABASE_URL" — o pior primeiro contato possível
+ * com um sistema. `/configuracoes` é a única tela que funciona sem banco, justamente
+ * porque o trabalho dela é dizer o que está faltando.
+ *
+ * Roda DEPOIS da checagem de sessão, e não antes: o diagnóstico revela quais variáveis
+ * de ambiente existem, então ele fica atrás do login assim que houver login.
+ *
+ * Vale só para navegação; requisição de API continua devolvendo o erro real, que é o
+ * que quem está depurando precisa ver.
+ */
+function semBanco(req: NextRequest, pathname: string): NextResponse | null {
+  const configurado = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+  if (configurado || pathname.startsWith('/api/') || pathname === '/configuracoes') return null;
+
+  const destino = req.nextUrl.clone();
+  destino.pathname = '/configuracoes';
+  destino.search = '';
   return NextResponse.redirect(destino);
 }
 

@@ -10,11 +10,25 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Configurações · SendFlow' };
 
 export default async function ConfiguracoesPage() {
-  const supabase = createServerClient();
-  const { data } = await supabase.from('app_settings').select('*');
-  const porChave = Object.fromEntries(
-    ((data ?? []) as { chave: string; valor: Record<string, string> }[]).map((r) => [r.chave, r.valor]),
-  );
+  /**
+   * Esta é a ÚNICA tela que precisa funcionar com o banco fora do ar.
+   *
+   * O trabalho dela é dizer o que está faltando — e "o banco não está configurado" é
+   * justamente o caso mais comum de quem acabou de clonar o projeto. Quebrar aqui
+   * seria o diagnóstico exigindo aquilo que ele deveria diagnosticar.
+   */
+  let porChave: Record<string, Record<string, string>> = {};
+  let banco = true;
+  try {
+    const supabase = createServerClient();
+    const { data, error } = await supabase.from('app_settings').select('*');
+    if (error) throw new Error(error.message);
+    porChave = Object.fromEntries(
+      ((data ?? []) as { chave: string; valor: Record<string, string> }[]).map((r) => [r.chave, r.valor]),
+    );
+  } catch {
+    banco = false;
+  }
 
   return (
     <ConfiguracoesClient
@@ -26,6 +40,7 @@ export default async function ConfiguracoesPage() {
         rodape_texto: porChave.email_remetente?.rodape_texto ?? '',
       }}
       ambiente={{
+        banco,
         url_publica: urlPublica(),
         url_estavel: urlPublicaEstavel(),
         evolution: evolutionConfigurada(),

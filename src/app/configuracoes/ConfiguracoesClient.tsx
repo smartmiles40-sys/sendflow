@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Field, inputCls } from '@/components/ui';
 
 interface Ambiente {
+  banco: boolean;
   url_publica: string;
   url_estavel: boolean;
   evolution: boolean;
@@ -129,13 +130,16 @@ export function ConfiguracoesClient({
           <button
             type="button"
             onClick={() => void salvar()}
-            disabled={salvando}
+            disabled={salvando || !ambiente.banco}
             className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0a54ff] disabled:opacity-50"
           >
             {salvando ? 'Salvando…' : 'Salvar'}
           </button>
           {salvo && <span className="text-sm text-[#7effcf]">✓ Salvo</span>}
           {erro && <span className="text-sm text-[#ffb183]">{erro}</span>}
+          {!ambiente.banco && (
+            <span className="text-sm text-muted">Conecte o banco para salvar.</span>
+          )}
         </div>
       </section>
 
@@ -175,6 +179,14 @@ export function ConfiguracoesClient({
  */
 function Diagnostico({ ambiente }: { ambiente: Ambiente }) {
   const itens: { ok: boolean; critico: boolean; titulo: string; detalhe: string }[] = [
+    {
+      ok: ambiente.banco,
+      critico: true,
+      titulo: 'Banco de dados (Supabase)',
+      detalhe: ambiente.banco
+        ? 'Conectado.'
+        : 'Não foi possível ler o banco. Confira NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY, e se as migrations de supabase/migrations/ já rodaram (da 0001 à 0012).',
+    },
     {
       ok: ambiente.evolution,
       critico: true,
