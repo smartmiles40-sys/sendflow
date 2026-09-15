@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { Audience, Campaign, CampaignType, Group } from '@/lib/types';
+import type { Audience, Campaign, CampaignType, Connection, Group, Lista } from '@/lib/types';
 import { WhatsAppPreview } from '@/components/WhatsAppPreview';
 import { MultiDatePicker, type DateEntry } from '@/components/MultiDatePicker';
 import {
@@ -115,6 +115,16 @@ function NovaCampanha() {
   const [multiProgress, setMultiProgress] = useState<string | null>(null);
 
   // Audience picker
+  // Alvo: os grupos cadastrados (como sempre) ou os contatos de uma lista (novo).
+  // São excludentes — uma campanha vai para um ou para o outro, nunca para os dois.
+  const [alvo, setAlvo] = useState<'grupos' | 'contatos'>('grupos');
+  const [listas, setListas] = useState<Lista[]>([]);
+  const [listIds, setListIds] = useState<string[]>([]);
+  // Número que dispara. Vazio = o motor escolhe (a conexão do grupo, ou a primeira
+  // conectada) — que é o certo na maioria dos casos, porque um grupo só pode ser
+  // alcançado pelo número que participa dele.
+  const [conexoes, setConexoes] = useState<Connection[]>([]);
+  const [connectionId, setConnectionId] = useState<string>('');
   const [audienceMode, setAudienceMode] = useState<AudienceMode>('todos');
   const [audiences, setAudiences] = useState<Audience[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -132,9 +142,11 @@ function NovaCampanha() {
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const [audRes, grpRes] = await Promise.allSettled([
+      const [audRes, grpRes, conRes, lisRes] = await Promise.allSettled([
         fetch('/api/audiences'),
         fetch('/api/groups'),
+        fetch('/api/connections'),
+        fetch('/api/lists'),
       ]);
       if (!alive) return;
       if (audRes.status === 'fulfilled' && audRes.value.ok) {
@@ -142,6 +154,13 @@ function NovaCampanha() {
       }
       if (grpRes.status === 'fulfilled' && grpRes.value.ok) {
         setGroups(((await grpRes.value.json().catch(() => [])) as Group[]) ?? []);
+      }
+      if (conRes.status === 'fulfilled' && conRes.value.ok) {
+        const body = (await conRes.value.json().catch(() => ({}))) as { conexoes?: Connection[] };
+        setConexoes(body.conexoes ?? []);
+      }
+      if (lisRes.status === 'fulfilled' && lisRes.value.ok) {
+        setListas(((await lisRes.value.json().catch(() => [])) as Lista[]) ?? []);
       }
     })();
     return () => {
@@ -153,8 +172,10 @@ function NovaCampanha() {
   useEffect(() => {
     if (!editId) return;
     let alive = true;
-    setLoading(true);
     void (async () => {
+      // Dentro da função assíncrona, e não no corpo do efeito: setState síncrono no
+      // corpo dispara uma renderização em cascata antes mesmo de a busca começar.
+      setLoading(true);
       try {
         const res = await fetch(`/api/campaigns/${editId}`);
         if (!alive) return;
@@ -180,6 +201,10 @@ function NovaCampanha() {
           setAgendar(false);
           setEnviarEm('');
         }
+
+        setConnectionId(c.connection_id ?? '');
+        setAlvo(c.alvo === 'contatos' ? 'contatos' : 'grupos');
+        setListIds(c.list_ids ?? []);
 
         // Audience: explicit group list wins, then a saved público, else "todos".
         if (c.group_ids && c.group_ids.length) {
@@ -289,8 +314,11 @@ function NovaCampanha() {
         validateCampaign(draft, new Date()).map((e) => [e.field, e.message]),
       );
       // "Público salvo" needs an actual selection — never silently fall back to "todos".
-      if (audienceMode === 'salvo' && !selectedAudienceId) {
+      if (alvo === 'grupos' && audienceMode === 'salvo' && !selectedAudienceId) {
         map.audience = 'Escolha um público salvo para continuar.';
+      }
+      if (alvo === 'contatos' && !listIds.length) {
+        map.audience = 'Escolha ao menos uma lista de contatos.';
       }
       if (Object.keys(map).length) {
         setErrors(map);
@@ -300,6 +328,11 @@ function NovaCampanha() {
     setErrors({});
     setBusy(true);
     const { audience_id, group_ids } = resolveAudience(audienceMode, selectedAudienceId, selectedGroupIds);
+    const alvoBody = {
+      alvo,
+      list_ids: alvo === 'contatos' ? listIds : null,
+      connection_id: connectionId || null,
+    };
     try {
       if (editing) {
         const enviar_em = agendar && enviarEm ? new Date(enviarEm).toISOString() : new Date().toISOString();
@@ -316,6 +349,7 @@ function NovaCampanha() {
             enviar_em,
             audience_id,
             group_ids,
+            ...alvoBody,
             // Editing is always a (re)schedule: set status so a former rascunho/erro/
             // cancelada gets re-armed on the n8n scheduler when saved.
             status: 'agendada',
@@ -341,7 +375,7 @@ function NovaCampanha() {
       const res = await fetch('/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ draft, asDraft, audience_id, group_ids }),
+        body: JSON.stringify({ draft, asDraft, audience_id, group_ids, ...alvoBody }),
       });
       if (res.ok) {
         router.push('/campanhas');
@@ -448,7 +482,15 @@ function NovaCampanha() {
           const res = await fetch('/api/campaigns', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ draft, asDraft: false, audience_id, group_ids }),
+            body: JSON.stringify({
+              draft,
+              asDraft: false,
+              audience_id,
+              group_ids,
+              alvo,
+              list_ids: alvo === 'contatos' ? listIds : null,
+              connection_id: connectionId || null,
+            }),
           });
           if (!res.ok) failures++;
         } catch {
@@ -599,21 +641,127 @@ function NovaCampanha() {
             </label>
           </Field>
 
+          {/* ALVO: grupos de WhatsApp ou contatos de uma lista */}
+          <Field label="Para quem vai">
+            <div className="mb-4 flex gap-2.5">
+              <SegButton
+                on={alvo === 'grupos'}
+                onClick={() => {
+                  setAlvo('grupos');
+                  clearError('audience');
+                }}
+              >
+                Grupos
+              </SegButton>
+              <SegButton
+                on={alvo === 'contatos'}
+                onClick={() => {
+                  setAlvo('contatos');
+                  clearError('audience');
+                }}
+              >
+                Contatos (1 a 1)
+              </SegButton>
+            </div>
+
+            {alvo === 'contatos' && (
+              <div className="mb-1">
+                {listas.length === 0 ? (
+                  <p className="rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm text-muted">
+                    Nenhuma lista cadastrada.{' '}
+                    <Link href="/contatos" className="font-semibold text-blue2 hover:underline">
+                      Crie uma em Contatos e listas
+                    </Link>{' '}
+                    e importe seu CSV.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      {listas.map((l) => (
+                        <label
+                          key={l.id}
+                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm transition-colors hover:border-blue2"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={listIds.includes(l.id)}
+                            onChange={(e) => {
+                              clearError('audience');
+                              setListIds((atual) =>
+                                e.target.checked ? [...atual, l.id] : atual.filter((x) => x !== l.id),
+                              );
+                            }}
+                            className="h-4 w-4 accent-[#0147FF]"
+                          />
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ background: l.cor }}
+                            aria-hidden="true"
+                          />
+                          <span className="flex-1 truncate">{l.nome}</span>
+                          <span className="shrink-0 text-xs text-muted">{l.total ?? 0} contatos</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="mt-2.5 text-xs leading-relaxed text-muted">
+                      Vai uma mensagem individual para o WhatsApp de cada contato com telefone
+                      válido. Quem está descadastrado fica de fora, e a mesma pessoa em duas listas
+                      recebe uma vez só. Nesse modo o <b className="text-ink">@todos</b> não tem
+                      efeito — ele só existe em grupo.
+                    </p>
+                  </>
+                )}
+                {errors.audience && (
+                  <p className="mt-1.5 text-xs text-[#ffb183]" role="alert">
+                    {errors.audience}
+                  </p>
+                )}
+              </div>
+            )}
+          </Field>
+
           {/* AUDIENCE PICKER */}
-          <AudiencePicker
-            audiences={audiences}
-            groups={groups}
-            mode={audienceMode}
-            onModeChange={setAudienceMode}
-            selectedAudienceId={selectedAudienceId}
-            onSelectAudience={setSelectedAudienceId}
-            selectedGroupIds={selectedGroupIds}
-            onToggleGroup={toggleGroup}
-            groupQuery={groupQuery}
-            onGroupQueryChange={setGroupQuery}
-            error={errors.audience}
-            onClearError={() => clearError('audience')}
-          />
+          {alvo === 'grupos' && (
+            <AudiencePicker
+              audiences={audiences}
+              groups={groups}
+              mode={audienceMode}
+              onModeChange={setAudienceMode}
+              selectedAudienceId={selectedAudienceId}
+              onSelectAudience={setSelectedAudienceId}
+              selectedGroupIds={selectedGroupIds}
+              onToggleGroup={toggleGroup}
+              groupQuery={groupQuery}
+              onGroupQueryChange={setGroupQuery}
+              error={errors.audience}
+              onClearError={() => clearError('audience')}
+            />
+          )}
+
+          {/* CONEXÃO: por qual número sai */}
+          {conexoes.length > 0 && (
+            <Field label="Enviar pelo número" hint="· deixe no automático se não tiver motivo para fixar">
+              <select
+                value={connectionId}
+                onChange={(e) => setConnectionId(e.target.value)}
+                className={inputCls}
+              >
+                <option value="">Automático</option>
+                {conexoes.map((c) => (
+                  <option key={c.id} value={c.id} disabled={c.status !== 'conectada'}>
+                    {c.nome}
+                    {c.numero ? ` · ${c.numero}` : ''}
+                    {c.status !== 'conectada' ? ' (desconectado)' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs leading-relaxed text-muted">
+                No automático, cada grupo é disparado pelo número que participa dele — que é o único
+                que consegue. Fixar um número só faz sentido para campanha a contatos, quando você
+                quer que a resposta caia num aparelho específico.
+              </p>
+            </Field>
+          )}
 
           <Field label="Agendamento" error={errors.enviar_em}>
             {!editing && (

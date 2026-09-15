@@ -82,7 +82,9 @@ export function CampaignRow({
         </div>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-sm font-semibold">{c.nome}</span>
+            <Link href={`/campanhas/${c.id}`} className="truncate text-sm font-semibold hover:underline">
+              {c.nome}
+            </Link>
             <span className="shrink-0 rounded-full border border-border bg-surface2 px-2 py-0.5 text-[11px] font-medium text-muted">
               {categoriaLabel(c.categoria)}
             </span>
@@ -96,8 +98,8 @@ export function CampaignRow({
         <span className="mt-0.5 block text-xs text-muted">{whenHint[c.status]}</span>
       </div>
 
-      <div className="text-sm text-ink">
-        Todos <span className="text-xs text-muted">· grupos ativos</span>
+      <div className="min-w-0 text-sm text-ink">
+        {publicoDaCampanha(c)}
       </div>
 
       <div>
@@ -106,9 +108,15 @@ export function CampaignRow({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2">
-        {c.status === 'enviando' ? (
-          <span className="text-xs text-muted">em envio…</span>
-        ) : confirming ? (
+        <Link
+          href={`/campanhas/${c.id}`}
+          aria-label={`Resultados de ${c.nome}`}
+          title="Ver quem recebeu, quem leu e quem respondeu"
+          className={iconBtnCls}
+        >
+          📊
+        </Link>
+        {confirming ? (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted">Excluir?</span>
             <button
@@ -157,6 +165,45 @@ export function CampaignRow({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Descreve o público REAL da campanha.
+ *
+ * A versão anterior escrevia "Todos · grupos ativos" em toda linha, fosse qual fosse o
+ * alvo — uma campanha mandada para dois grupos escolhidos a dedo aparecia na lista como
+ * se tivesse ido para todo mundo. Rótulo fixo em coluna de dado é pior que coluna
+ * vazia: parece informação.
+ */
+function publicoDaCampanha(c: Campaign): React.ReactNode {
+  if (c.alvo === 'contatos') {
+    const n = c.list_ids?.length ?? 0;
+    return (
+      <>
+        Contatos <span className="text-xs text-muted">· {n} lista{n === 1 ? '' : 's'}</span>
+      </>
+    );
+  }
+  if (c.group_ids?.length) {
+    return (
+      <>
+        {c.group_ids.length} grupo{c.group_ids.length === 1 ? '' : 's'}{' '}
+        <span className="text-xs text-muted">· escolhidos</span>
+      </>
+    );
+  }
+  if (c.audience_id) {
+    return (
+      <>
+        Público <span className="text-xs text-muted">· salvo</span>
+      </>
+    );
+  }
+  return (
+    <>
+      Todos <span className="text-xs text-muted">· grupos ativos</span>
+    </>
   );
 }
 

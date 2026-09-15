@@ -16,6 +16,7 @@ export interface RecorrenciaInput {
   mencionar_todos: boolean;
   audience_id: string | null;
   group_ids: string[] | null;
+  connection_id: string | null;
   ativo: boolean;
 }
 
@@ -66,6 +67,7 @@ export function parseRecorrencia(body: Record<string, unknown>): {
       mencionar_todos: Boolean(body.mencionar_todos),
       audience_id: typeof body.audience_id === 'string' ? body.audience_id : null,
       group_ids: groupIds,
+      connection_id: typeof body.connection_id === 'string' ? body.connection_id : null,
       ativo: body.ativo === undefined ? true : Boolean(body.ativo),
     },
     errors,

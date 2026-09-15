@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { Group } from '@/lib/types';
 
 const inputCls =
@@ -88,15 +89,28 @@ export function GroupsClient({ initial }: { initial: Group[] }) {
     <div className="max-w-3xl">
       <header className="mb-6">
         <h1 className="font-display text-2xl font-semibold tracking-[-0.01em]">Grupos</h1>
-        <p className="mt-1.5 text-sm text-muted">
-          Cadastre cada grupo uma vez — cole o ID do WhatsApp para reutilizá-lo nas campanhas.
+        <p className="mt-1.5 max-w-2xl text-sm text-muted">
+          Os grupos vêm do próprio WhatsApp: conecte um número em{' '}
+          <Link href="/conexoes" className="font-semibold text-blue2 hover:underline">
+            Conexões
+          </Link>{' '}
+          e clique em <b>Puxar grupos</b>. Eles chegam desativados — você liga um a um os que
+          devem receber campanha.
         </p>
       </header>
 
-      <div className="mb-6 flex flex-wrap items-end gap-3 rounded-xl2 border border-border bg-surface p-5">
+      <details className="mb-6 rounded-xl2 border border-border bg-surface p-5">
+        <summary className="cursor-pointer text-sm font-semibold text-muted transition-colors hover:text-ink">
+          Cadastrar um grupo à mão
+        </summary>
+        <p className="mt-2 mb-4 text-xs leading-relaxed text-muted">
+          Só é preciso quando o grupo ainda não apareceu na sincronização. O caminho normal é
+          puxar os grupos pela conexão.
+        </p>
+      <div className="flex flex-wrap items-end gap-3">
         <label className="min-w-[220px] flex-1 text-sm">
           <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-muted">
-            ID do grupo (Z-API)
+            ID do grupo
           </span>
           <input
             value={groupId}
@@ -130,11 +144,16 @@ export function GroupsClient({ initial }: { initial: Group[] }) {
           </p>
         )}
       </div>
+      </details>
 
       <div className="overflow-hidden rounded-xl2 border border-border bg-surface">
         {groups.length === 0 ? (
-          <div className="p-6 text-sm text-muted">
-            Nenhum grupo cadastrado ainda. Adicione o primeiro acima.
+          <div className="p-6 text-sm leading-relaxed text-muted">
+            Nenhum grupo ainda.{' '}
+            <Link href="/conexoes" className="font-semibold text-blue2 hover:underline">
+              Conecte um número
+            </Link>{' '}
+            e clique em <b>Puxar grupos</b> — eles aparecem aqui sozinhos.
           </div>
         ) : (
           groups.map((g) => {
@@ -147,7 +166,10 @@ export function GroupsClient({ initial }: { initial: Group[] }) {
               >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{g.nome}</div>
-                  <div className="mt-0.5 truncate font-mono text-xs text-muted">{g.group_id}</div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
+                    {typeof g.participantes === 'number' && <span>{g.participantes} participantes</span>}
+                    <span className="truncate font-mono">{g.group_id}</span>
+                  </div>
                   {rowErr && (
                     <p className="mt-1 text-xs text-[#ffb183]" role="alert">
                       {rowErr}

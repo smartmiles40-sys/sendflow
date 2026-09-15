@@ -3,6 +3,9 @@ import { createServerClient } from '@/lib/supabase/server';
 import { validateCampaign, type CampaignDraft } from '@/lib/validation';
 import { buildCampaignRow } from '@/lib/campaign-row';
 import { readJson } from '@/lib/http';
+import { dispararTick } from '@/lib/dispatch/gatilho';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   const status = new URL(req.url).searchParams.get('status');
@@ -20,6 +23,9 @@ export async function POST(req: Request) {
     asDraft?: unknown;
     audience_id?: unknown;
     group_ids?: unknown;
+    alvo?: unknown;
+    list_ids?: unknown;
+    connection_id?: unknown;
   }>(req);
   if (!parsed.ok) return parsed.res;
   const body = parsed.data;
@@ -30,26 +36,46 @@ export async function POST(req: Request) {
   if (!['texto', 'imagem', 'video', 'pdf'].includes(draft.tipo)) {
     return NextResponse.json({ errors: [{ field: 'tipo', message: 'Tipo inválido.' }] }, { status: 400 });
   }
+
   const asDraft = Boolean(body.asDraft);
-  const audienceId = (body.audience_id as string | null) ?? null;
-  const groupIds = Array.isArray(body.group_ids) ? (body.group_ids as string[]) : null;
+  const alvo = body.alvo === 'contatos' ? ('contatos' as const) : ('grupos' as const);
+  const listIds = Array.isArray(body.list_ids) ? (body.list_ids as string[]) : null;
+
+  if (!asDraft && alvo === 'contatos' && !listIds?.length) {
+    return NextResponse.json(
+      { errors: [{ field: 'list_ids', message: 'Escolha ao menos uma lista de contatos.' }] },
+      { status: 400 },
+    );
+  }
+
   if (!asDraft) {
     const errors = validateCampaign(draft, new Date());
     if (errors.length) return NextResponse.json({ errors }, { status: 400 });
   }
-  const row = buildCampaignRow(draft, audienceId, groupIds, new Date(), { asDraft });
+
+  const row = buildCampaignRow(
+    draft,
+    {
+      audienceId: (body.audience_id as string | null) ?? null,
+      groupIds: Array.isArray(body.group_ids) ? (body.group_ids as string[]) : null,
+      alvo,
+      listIds,
+      connectionId: (body.connection_id as string | null) ?? null,
+    },
+    new Date(),
+    { asDraft },
+  );
+
   const supabase = createServerClient();
   const { data, error } = await supabase.from('campaigns').insert(row).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Agendamento no horário exato: avisa o n8n na hora, pra ele esperar até enviar_em.
-  // Fire-and-forget — se falhar, o cron dispatcher de 3 min é a rede de segurança.
-  if (data?.status === 'agendada' && process.env.N8N_WEBHOOK_URL) {
-    fetch(process.env.N8N_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: data.id }),
-    }).catch(() => {});
+  // "Enviar agora" acorda o motor na hora, em vez de esperar o próximo ciclo do cron.
+  // A janela de 60 s pega também o agendamento "daqui a pouco" que cairia entre ciclos.
+  // Se este atalho falhar, o cron pega a campanha do mesmo jeito — daí não haver
+  // tratamento de erro aqui.
+  if (data?.status === 'agendada' && new Date(data.enviar_em).getTime() <= Date.now() + 60_000) {
+    dispararTick('whatsapp');
   }
 
   return NextResponse.json(data, { status: 201 });

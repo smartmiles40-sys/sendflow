@@ -100,10 +100,20 @@ describe('buildRecorrenciaRow', () => {
       mencionar_todos: false,
       audience_id: 'aud-1',
       group_ids: null,
+      // Recorrência é sempre para grupos: o molde semanal não tem tela para escolher
+      // lista de contatos, e deixar o alvo ambíguo faria o fan-out olhar o lado errado.
+      alvo: 'grupos',
+      list_ids: null,
+      connection_id: null,
       enviar_em: '2026-08-31T12:00:00.000Z',
       status: 'agendada',
       recorrencia_id: 'r1',
     });
+  });
+
+  it('leva a conexão do molde para a ocorrência', () => {
+    const row = buildRecorrenciaRow({ ...REC, connection_id: 'conexao-1' }, '2026-08-31T12:00:00.000Z');
+    expect(row.connection_id).toBe('conexao-1');
   });
 
   it('usa a data de São Paulo no nome, não a UTC', () => {

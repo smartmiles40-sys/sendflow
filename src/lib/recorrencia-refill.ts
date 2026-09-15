@@ -15,6 +15,7 @@ const CAMPOS_SINCRONIZADOS = [
   'mencionar_todos',
   'audience_id',
   'group_ids',
+  'connection_id',
 ] as const;
 
 /** Normaliza o timestamptz do PostgREST ('…+00:00') para o ISO com Z que geramos. */

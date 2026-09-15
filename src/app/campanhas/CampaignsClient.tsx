@@ -219,8 +219,10 @@ export function CampaignsClient({ initial }: { initial: Campaign[] }) {
         )}
       </div>
 
-      <p className="mt-3.5 text-xs text-muted">
-        As campanhas são despachadas pelo motor n8n nos horários agendados.
+      <p className="mt-3.5 text-xs leading-relaxed text-muted">
+        O envio é feito pelo motor próprio do sistema, pelo número conectado em Conexões, com um
+        intervalo aleatório entre cada grupo para o WhatsApp não bloquear a conta. Por isso uma
+        campanha grande fica minutos em <b>Enviando</b> — clique nela para ver quem já recebeu.
       </p>
     </div>
   );

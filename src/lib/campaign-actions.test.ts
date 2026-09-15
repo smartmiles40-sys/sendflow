@@ -17,7 +17,7 @@ describe('campaignActions', () => {
   it('enviada → excluir only', () => {
     expect(campaignActions('enviada')).toEqual(['excluir']);
   });
-  it('enviando → no actions', () => {
-    expect(campaignActions('enviando')).toEqual([]);
+  it('enviando → só cancelar (interromper o disparo em andamento)', () => {
+    expect(campaignActions('enviando')).toEqual(['cancelar']);
   });
 });
