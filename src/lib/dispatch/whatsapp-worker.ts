@@ -420,17 +420,29 @@ export async function fecharCampanhas(
 ): Promise<number> {
   const { data: emVoo } = await supabase
     .from('campaigns')
-    .select('id,nome')
+    .select('id,nome,atualizado_em')
     .eq('status', 'enviando')
     .limit(100);
   if (!emVoo?.length) return 0;
 
   let fechadas = 0;
-  for (const c of emVoo as { id: string; nome: string }[]) {
+  for (const c of emVoo as { id: string; nome: string; atualizado_em: string }[]) {
     const pendentes = await contarFila(supabase, c.id, ['pendente', 'enviando']);
     if (pendentes > 0) continue;
 
     const total = await contarFila(supabase, c.id);
+
+    // Campanha 'enviando' e SEM nenhum destinatário pode ser uma de duas coisas:
+    // um fan-out que falhou, ou um fan-out que está acontecendo AGORA, neste
+    // milissegundo, em outro tick — a promoção grava o status antes de inserir a fila.
+    // Fechar aqui mataria uma campanha perfeitamente válida um instante antes de ela
+    // ganhar seus destinatários. Cinco minutos de carência resolve: fan-out real
+    // termina em segundos, e o que passa disso é falha de verdade.
+    if (total === 0) {
+      const idadeMin = (agora.getTime() - new Date(c.atualizado_em).getTime()) / 60_000;
+      if (!Number.isFinite(idadeMin) || idadeMin < 5) continue;
+    }
+
     const enviados = await contarFila(supabase, c.id, ['enviado', 'entregue', 'lido']);
     const falhas = await contarFila(supabase, c.id, ['falha']);
 

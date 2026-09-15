@@ -182,11 +182,23 @@ begin
 end $$;
 
 -- As funções são chamadas exclusivamente pelas rotas do app, que usam a service_role.
--- Tirar o EXECUTE de anon/authenticated impede que alguém com a chave pública do
--- Supabase (que vai no navegador, por definição) chame `registrar_descadastro` em
--- massa e derrube a base inteira.
-revoke execute on function public.registrar_abertura(text, text, text) from anon, authenticated;
-revoke execute on function public.registrar_clique(text, text, text, text) from anon, authenticated;
-revoke execute on function public.registrar_descadastro(text) from anon, authenticated;
-revoke execute on function public.registrar_falha_email(text, text, text) from anon, authenticated;
-revoke execute on function public.registrar_entrega_email(text) from anon, authenticated;
+-- Sem isto, alguém com a chave pública do Supabase (que vai no navegador, por
+-- definição) chamaria `registrar_descadastro` em massa e derrubaria a base inteira.
+--
+-- O REVOKE precisa ser de PUBLIC, e não de `anon, authenticated`: no Postgres, toda
+-- função nasce com EXECUTE concedido a PUBLIC, e `anon`/`authenticated` herdam por
+-- esse caminho. Revogar só dos dois nomes deixaria o acesso intacto — o tipo de
+-- engano que passa despercebido justamente porque o comando roda sem erro.
+revoke execute on function public.registrar_abertura(text, text, text) from public;
+revoke execute on function public.registrar_clique(text, text, text, text) from public;
+revoke execute on function public.registrar_descadastro(text) from public;
+revoke execute on function public.registrar_falha_email(text, text, text) from public;
+revoke execute on function public.registrar_entrega_email(text) from public;
+
+-- E devolver explicitamente para quem precisa: depois do REVOKE de PUBLIC, a
+-- service_role também ficaria sem EXECUTE.
+grant execute on function public.registrar_abertura(text, text, text) to service_role;
+grant execute on function public.registrar_clique(text, text, text, text) to service_role;
+grant execute on function public.registrar_descadastro(text) to service_role;
+grant execute on function public.registrar_falha_email(text, text, text) to service_role;
+grant execute on function public.registrar_entrega_email(text) to service_role;

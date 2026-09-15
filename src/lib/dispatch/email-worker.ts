@@ -10,6 +10,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Contact, EmailCampaign } from '../types';
 import { montarEmail } from '../email/render';
 import { enviarEmail, EmailError, provedorAtivo, AVISO_SEM_PROVEDOR } from '../email/provider';
+import { segredoConfigurado } from '../auth';
 import { tokenAleatorio } from '../seguranca';
 import { urlPublica } from '../url';
 import { dormir, Orcamento } from './ritmo';
@@ -221,6 +222,17 @@ async function drenar(
 ): Promise<void> {
   if (!provedorAtivo()) {
     resultado.avisos.push(AVISO_SEM_PROVEDOR);
+    return;
+  }
+
+  // Sem AUTH_SECRET não há como assinar os links de clique, e a montagem do e-mail
+  // lança. Sem esta guarda, cada destinatário seria reivindicado, falharia três vezes
+  // e viraria 'falha' — a campanha inteira queimada por uma variável de ambiente que
+  // leva dez segundos para configurar. Parando aqui, a fila espera intacta.
+  if (!segredoConfigurado()) {
+    resultado.avisos.push(
+      'AUTH_SECRET não configurado: o envio de e-mail está parado para não queimar a fila. Gere um com: openssl rand -hex 32',
+    );
     return;
   }
 
