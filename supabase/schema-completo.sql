@@ -1304,6 +1304,9 @@ grant execute on function public.registrar_descadastro(text) to service_role;
 grant execute on function public.registrar_falha_email(text, text, text) to service_role;
 grant execute on function public.registrar_entrega_email(text) to service_role;
 
+-- ═════════════════════════════════════════════════════════════════════════════
+-- 0013_revoga_funcoes_de_anon.sql
+-- ═════════════════════════════════════════════════════════════════════════════
 
 -- supabase/migrations/0013_revoga_funcoes_de_anon.sql
 -- Correção da 0012, descoberta ao montar o banco real (16/09/2026).
