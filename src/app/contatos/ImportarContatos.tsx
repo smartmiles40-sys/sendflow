@@ -123,13 +123,13 @@ export function ImportarContatos({
 
         {resultado ? (
           <div>
-            <div className="rounded-xl border border-green/30 bg-green/[0.07] px-4 py-3.5 text-sm text-[#7effcf]">
+            <div className="rounded-xl border border-green/30 bg-green/[0.07] px-4 py-3.5 text-sm text-[#D7F264]">
               ✓ {resultado}
             </div>
             <button
               type="button"
               onClick={onConcluido}
-              className="mt-5 w-full rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0a54ff]"
+              className="mt-5 w-full rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover"
             >
               Ver contatos
             </button>
@@ -146,7 +146,7 @@ export function ImportarContatos({
                   const f = e.target.files?.[0];
                   if (f) void lerArquivo(f);
                 }}
-                className="block w-full cursor-pointer rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-blue file:px-3.5 file:py-2 file:text-sm file:font-semibold file:text-white"
+                className="block w-full cursor-pointer rounded-xl border border-border bg-surface2 px-3.5 py-3 text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-blue file:px-3.5 file:py-2 file:text-sm file:font-semibold file:text-on-blue"
               />
               <p className="mt-2 text-xs leading-relaxed text-muted">
                 O arquivo precisa ter uma linha de cabeçalho e ao menos uma coluna de{' '}
@@ -164,7 +164,7 @@ export function ImportarContatos({
                   <span className="mb-2.5 block text-[13px] font-semibold">2. Confira o que entendi</span>
                   <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
                     <span>
-                      <b className="text-[#7effcf]">{formatarNumero(previa.validos)}</b> contatos válidos
+                      <b className="text-[#D7F264]">{formatarNumero(previa.validos)}</b> contatos válidos
                     </span>
                     {previa.totalIgnoradas > 0 && (
                       <span>
@@ -237,7 +237,7 @@ export function ImportarContatos({
                                 e.target.checked ? [...atual, l.id] : atual.filter((x) => x !== l.id),
                               )
                             }
-                            className="h-4 w-4 accent-[#0147FF]"
+                            className="h-4 w-4 accent-[#D7F264]"
                           />
                           {l.nome}
                         </label>
@@ -275,7 +275,7 @@ export function ImportarContatos({
                     type="button"
                     onClick={() => void importar()}
                     disabled={ocupado || previa.validos === 0}
-                    className="flex-1 rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0a54ff] disabled:opacity-50"
+                    className="flex-1 rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:opacity-50"
                   >
                     {ocupado
                       ? 'Importando…'

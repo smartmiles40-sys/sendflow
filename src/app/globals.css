@@ -1,36 +1,47 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+/* Fontes da marca Se Tu For, Eu Vou!: títulos em Moret (kit Adobe da agência, o mesmo
+   das LPs e do portal) e texto em Inter. */
+@import url('https://use.typekit.net/zec1zie.css');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #04070F;
-  --color-surface: #0A0F1F;
-  --color-surface2: #0E1526;
-  --color-border: #1C2338;
-  --color-blue: #0147FF;
-  --color-blue2: #2E6BFF;
-  --color-ink: #F6F8FF;
-  --color-muted: #8C99B6;
+  /* ── Identidade Se Tu For, Eu Vou! ─────────────────────────────────────────
+     Os nomes dos tokens vêm do projeto de origem (`blue` = cor de ação) e ficaram
+     de propósito: trocar o nome mexeria em ~300 classes sem mudar nada na tela.
+     O VALOR é que é da marca — verde-petróleo #09282B, lima #D7F264, off-white #F8F6F7.
+     Contrastes medidos: ink 11,5:1 e muted 5,2:1 na superfície mais clara (#0F3A3F);
+     texto verde-petróleo sobre o botão lima 12,4:1. */
+  --color-bg: #051C1E;
+  --color-surface: #09282B;
+  --color-surface2: #0F3A3F;
+  --color-border: #1D4F54;
+  --color-blue: #D7F264;        /* ação principal: lima da marca */
+  --color-blue-hover: #C0E046;
+  --color-blue2: #E3F58F;       /* destaque em texto, borda e foco */
+  --color-on-blue: #09282B;     /* texto e ícone SOBRE a cor de ação */
+  --color-ink: #F8F6F7;
+  --color-muted: #8FAEA9;
   --color-orange: #FF5C00;
-  --color-green: #00FF9C;
+  --color-green: #7BD88F;
 
   /* ── Paleta de dados ───────────────────────────────────────────────────────
-     NÃO escolhida a olho. Estes valores saíram do validador de paleta do guia de
-     visualização (seis checagens: faixa de luminosidade, piso de croma, separação
-     para daltonismo, piso de visão normal e contraste) rodado contra a superfície
-     escura deste painel (#0A0F1F).
+     NÃO escolhida a olho. Saiu do validador de paleta do guia de visualização
+     (faixa de luminosidade, piso de croma, separação para daltonismo, piso de visão
+     normal e contraste) rodado contra a superfície deste painel (#09282B) e contra
+     a mais clara (#0F3A3F) — todas as checagens passaram nas duas.
 
-     Séries (identidade — WhatsApp x E-mail): slots 1 e 2 da paleta categórica.
-       ΔE 26,8 sob protanopia e 31,8 em visão normal — bem acima dos pisos de 8 e 15.
-     Funil (ordinal — as etapas TÊM ordem): uma só matiz, do claro ao escuro, para a
-       ordem se ler na própria cor. Passos com ΔL >= 0,06 e o mais escuro a 2,88:1
-       contra a superfície.
+     Séries (identidade — WhatsApp x E-mail): verde da marca x violeta.
+       ΔE 29,6 sob deuteranopia e 31,9 em visão normal (pisos: 8 e 15). O lima puro
+       não serve aqui: é claro demais para marca de gráfico sobre fundo escuro.
+     Funil (ordinal — as etapas TÊM ordem): uma só matiz verde, do claro ao escuro,
+       passos com ΔL >= 0,06 e o mais escuro a 3,3:1 contra a superfície.
      A ordem das séries é fixa: filtrar um canal nunca repinta o outro. */
-  --color-serie-1: #3987e5;   /* WhatsApp */
-  --color-serie-2: #d95926;   /* E-mail   */
-  --color-funil-1: #9ec5f4;
-  --color-funil-2: #6da7ec;
-  --color-funil-3: #3987e5;
-  --color-funil-4: #1c5cab;
+  --color-serie-1: #7ca215;   /* WhatsApp */
+  --color-serie-2: #7071dd;   /* E-mail   */
+  --color-funil-1: #d9ef9e;
+  --color-funil-2: #b7dc5a;
+  --color-funil-3: #86b31f;
+  --color-funil-4: #5b7f10;
   /* Cores de estado: reservadas, nunca reaproveitadas como "série 3". Sempre
      acompanhadas de rótulo — a cor jamais carrega o sentido sozinha. */
   --color-bom: #0ca30c;
@@ -38,8 +49,8 @@
   --color-serio: #ec835a;
   --color-critico: #d03b3b;
 
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-sans: Inter, system-ui, sans-serif;
+  --font-display: "moret-variable", "Moret", Georgia, serif;
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
   --radius-xl2: 16px;
 
@@ -53,9 +64,9 @@
 
 html, body { height: 100%; }
 body {
-  background-color: #04070F;
-  color: #F6F8FF;
-  background-image: radial-gradient(900px 500px at 85% 115%, rgba(1,71,255,.16), transparent 60%);
+  background-color: #051C1E;
+  color: #F8F6F7;
+  background-image: radial-gradient(900px 500px at 85% 115%, rgba(215,242,100,.07), transparent 60%);
   background-attachment: fixed;
 }
 

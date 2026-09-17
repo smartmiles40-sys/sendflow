@@ -133,7 +133,7 @@ export function GroupsClient({ initial }: { initial: Group[] }) {
         <button
           onClick={add}
           disabled={saving || !groupId.trim() || !nome.trim()}
-          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {saving ? 'Salvando…' : '＋ Adicionar'}
         </button>
@@ -230,7 +230,7 @@ function Switch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative h-6 w-[42px] shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-        checked ? 'bg-blue' : 'bg-[#2a3550]'
+        checked ? 'bg-blue' : 'bg-[#1F555A]'
       }`}
     >
       <span

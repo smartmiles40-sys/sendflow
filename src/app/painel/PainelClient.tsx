@@ -59,7 +59,7 @@ export function PainelClient({ inicial }: { inicial: DadosPainel }) {
               onClick={() => void trocarPeriodo(p.dias)}
               aria-pressed={dias === p.dias}
               className={`rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${
-                dias === p.dias ? 'bg-blue text-white' : 'text-muted hover:text-ink'
+                dias === p.dias ? 'bg-blue text-on-blue' : 'text-muted hover:text-ink'
               }`}
             >
               {p.label}
@@ -499,7 +499,7 @@ function ListaDestinos({
             <span className="min-w-0 flex-1 truncate text-sm">{d.destino_nome ?? d.destino}</span>
             <span className="shrink-0 text-xs text-muted">{formatarNumero(d.recebidas)} recebidas</span>
             <span
-              className={`shrink-0 text-sm font-semibold tabular-nums ${bom ? 'text-[#7effcf]' : 'text-[#ffb183]'}`}
+              className={`shrink-0 text-sm font-semibold tabular-nums ${bom ? 'text-[#D7F264]' : 'text-[#ffb183]'}`}
             >
               {formatarTaxa(d.taxa_leitura)}
             </span>

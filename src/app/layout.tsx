@@ -3,8 +3,8 @@ import './globals.css';
 import { Sidebar } from '@/components/Sidebar';
 
 export const metadata: Metadata = {
-  title: 'INVT Disparador',
-  description: 'Agende e acompanhe campanhas para grupos de WhatsApp.',
+  title: 'SendFlow · Se Tu For, Eu Vou!',
+  description: 'Campanhas de WhatsApp e e-mail da Se Tu For, Eu Vou! Viagens.',
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

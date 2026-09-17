@@ -12,9 +12,9 @@ export const dynamic = 'force-dynamic';
 const ROTULO_DESTINATARIO: Record<RecipientStatus, { label: string; cls: string }> = {
   pendente: { label: 'na fila', cls: 'text-muted' },
   enviando: { label: 'enviando', cls: 'text-[#ffb183]' },
-  enviado: { label: 'enviada', cls: 'text-[#9cc0ff]' },
-  entregue: { label: 'entregue', cls: 'text-[#9cc0ff]' },
-  lido: { label: 'lida', cls: 'text-[#7effcf]' },
+  enviado: { label: 'enviada', cls: 'text-[#DFEFC5]' },
+  entregue: { label: 'entregue', cls: 'text-[#DFEFC5]' },
+  lido: { label: 'lida', cls: 'text-[#D7F264]' },
   falha: { label: 'falhou', cls: 'text-[#ffb183]' },
   cancelado: { label: 'cancelada', cls: 'text-muted' },
 };
@@ -213,7 +213,7 @@ export default async function ResultadoCampanhaPage({
                       </td>
                       <td className={`px-3 py-2.5 ${ROTULO_DESTINATARIO[l.status].cls}`}>
                         {ROTULO_DESTINATARIO[l.status].label}
-                        {l.respondido_em && <span className="ml-1.5 text-[#7effcf]">· respondeu</span>}
+                        {l.respondido_em && <span className="ml-1.5 text-[#D7F264]">· respondeu</span>}
                       </td>
                       <td className="px-3 py-2.5 tabular-nums text-muted">{formatWhen(l.enviado_em)}</td>
                       <td className="px-3 py-2.5 tabular-nums text-muted">{formatWhen(l.entregue_em)}</td>

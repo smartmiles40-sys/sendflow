@@ -241,8 +241,8 @@ function GroupRow({
         <input type="checkbox" checked={checked} onChange={onToggle} className="sr-only" />
       )}
       <span
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs text-white transition-colors ${
-          checked ? 'border-blue bg-blue' : 'border-[#33405f]'
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs text-on-blue transition-colors ${
+          checked ? 'border-blue bg-blue' : 'border-[#2A6166]'
         }`}
         aria-hidden="true"
       >

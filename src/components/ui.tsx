@@ -74,7 +74,7 @@ export function Switch({
       aria-label={label}
       onClick={() => onChange(!checked)}
       className={`relative h-6 w-[42px] shrink-0 rounded-full transition-colors ${
-        checked ? 'bg-blue' : 'bg-[#2a3550]'
+        checked ? 'bg-blue' : 'bg-[#1F555A]'
       }`}
     >
       <span

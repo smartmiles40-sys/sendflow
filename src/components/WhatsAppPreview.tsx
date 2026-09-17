@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import type { CampaignType } from '@/lib/types';
 
 // Faithful recreation of the approved mockup's WhatsApp look: a dark chat pane
@@ -36,13 +37,9 @@ export function WhatsAppPreview({
       <div className="overflow-hidden rounded-[22px] border border-border bg-[#0b141a] shadow-[0_24px_60px_rgba(0,0,0,.5)]">
         {/* Group header */}
         <div className="flex items-center gap-2.5 bg-[#1f2c34] px-3.5 py-3">
-          <div className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue to-bg">
-            <svg viewBox="0 0 48 48" className="h-[18px] w-[18px]" aria-hidden="true">
-              <path d="M24 5 L39 44 L24 34 L9 44 Z" fill="#fff" />
-            </svg>
-          </div>
+          <Image src="/stfv-selo.png" alt="" width={34} height={34} className="h-[34px] w-[34px] shrink-0 rounded-full" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-[#e9edef]">Clientes INVT — Turma 12</div>
+            <div className="truncate text-sm font-semibold text-[#e9edef]">Expedição Japão — Turma Outubro</div>
             <div className="text-[11px] text-[#8696a0]">você, +47 participantes</div>
           </div>
         </div>

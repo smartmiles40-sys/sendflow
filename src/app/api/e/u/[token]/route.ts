@@ -106,27 +106,28 @@ function pagina(estado: Estado): string {
   * { box-sizing: border-box; }
   body {
     margin: 0; min-height: 100dvh; display: grid; place-items: center;
-    padding: 24px; background: #f4f6fb; color: #0a0f1f;
+    padding: 24px; background: #F8F6F7; color: #09282B;
     font: 16px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
   }
   .cartao {
     background: #fff; border-radius: 16px; padding: 36px 32px; max-width: 460px; width: 100%;
-    box-shadow: 0 12px 40px rgba(10,15,31,.10); text-align: center;
+    box-shadow: 0 12px 40px rgba(9,40,43,.10); text-align: center;
   }
   h1 { margin: 0 0 12px; font-size: 22px; line-height: 1.3; }
-  p  { margin: 0; color: #5a6480; }
+  p  { margin: 0; color: #3F5E5B; }
   form { margin-top: 24px; }
   button {
-    font: inherit; font-weight: 600; color: #fff; background: #0147ff; border: 0;
+    font: inherit; font-weight: 600; color: #09282B; background: #D7F264; border: 0;
     border-radius: 10px; padding: 14px 28px; min-height: 48px; width: 100%; cursor: pointer;
   }
-  button:hover { background: #0039d1; }
-  button:focus-visible { outline: 3px solid #7fa6ff; outline-offset: 2px; }
-  .marca { margin-top: 26px; font-size: 12px; letter-spacing: .14em; color: #98a1ba; }
+  button:hover { background: #C0E046; }
+  button:focus-visible { outline: 3px solid #09282B; outline-offset: 2px; }
+  .marca { margin-top: 26px; font-size: 12px; letter-spacing: .14em; color: #6F8F8A; }
   @media (prefers-color-scheme: dark) {
-    body { background: #04070f; color: #f6f8ff; }
-    .cartao { background: #0a0f1f; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
-    p { color: #8c99b6; }
+    body { background: #051C1E; color: #F8F6F7; }
+    .cartao { background: #09282B; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+    p { color: #8FAEA9; }
+    button:focus-visible { outline-color: #D7F264; }
   }
 </style>
 </head>
@@ -135,7 +136,7 @@ function pagina(estado: Estado): string {
     <h1>${conteudo.titulo}</h1>
     <p>${conteudo.texto}</p>
     ${botao}
-    <div class="marca">SENDFLOW</div>
+    <div class="marca">SE TU FOR, EU VOU! VIAGENS</div>
   </main>
 </body>
 </html>`;

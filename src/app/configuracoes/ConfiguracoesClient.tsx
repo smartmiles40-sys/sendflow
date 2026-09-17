@@ -131,11 +131,11 @@ export function ConfiguracoesClient({
             type="button"
             onClick={() => void salvar()}
             disabled={salvando || !ambiente.banco}
-            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0a54ff] disabled:opacity-50"
+            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:opacity-50"
           >
             {salvando ? 'Salvando…' : 'Salvar'}
           </button>
-          {salvo && <span className="text-sm text-[#7effcf]">✓ Salvo</span>}
+          {salvo && <span className="text-sm text-[#D7F264]">✓ Salvo</span>}
           {erro && <span className="text-sm text-[#ffb183]">{erro}</span>}
           {!ambiente.banco && (
             <span className="text-sm text-muted">Conecte o banco para salvar.</span>
@@ -260,7 +260,7 @@ function Diagnostico({ ambiente }: { ambiente: Ambiente }) {
       <h2 className="border-b border-border px-5 py-3.5 text-[15px] font-semibold">
         Estado do ambiente
         {pendentes.length === 0 ? (
-          <span className="ml-2 text-xs font-normal text-[#7effcf]">tudo configurado</span>
+          <span className="ml-2 text-xs font-normal text-[#D7F264]">tudo configurado</span>
         ) : (
           <span className="ml-2 text-xs font-normal text-muted">
             {pendentes.length} item(ns) pendente(s)

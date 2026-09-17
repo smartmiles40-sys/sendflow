@@ -66,7 +66,7 @@ export function SequencesListClient({
                 <h2 className="min-w-0 flex-1 font-display text-lg font-semibold leading-tight">
                   {s.nome}
                 </h2>
-                <span className="shrink-0 rounded-full border border-blue2/30 bg-blue2/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#9cc0ff]">
+                <span className="shrink-0 rounded-full border border-blue2/30 bg-blue2/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#DFEFC5]">
                   {categoriaLabel(s.categoria)}
                 </span>
               </div>
@@ -83,7 +83,7 @@ export function SequencesListClient({
                 </Link>
                 <Link
                   href={`/sequencias/${s.id}/disparar`}
-                  className="flex-1 rounded-xl bg-blue px-3 py-2.5 text-center text-[13px] font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff]"
+                  className="flex-1 rounded-xl bg-blue px-3 py-2.5 text-center text-[13px] font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover"
                 >
                   📅 Disparar semana
                 </Link>

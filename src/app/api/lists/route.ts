@@ -41,7 +41,7 @@ export async function POST(req: Request) {
   if (!nome) {
     return NextResponse.json({ errors: [{ field: 'nome', message: 'Dê um nome à lista.' }] }, { status: 400 });
   }
-  const cor = String(body.cor ?? '#2E6BFF');
+  const cor = String(body.cor ?? '#D7F264');
 
   const supabase = createServerClient();
   const { data, error } = await supabase
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     .insert({
       nome,
       descricao: String(body.descricao ?? '').trim() || null,
-      cor: /^#[0-9a-fA-F]{6}$/.test(cor) ? cor : '#2E6BFF',
+      cor: /^#[0-9a-fA-F]{6}$/.test(cor) ? cor : '#D7F264',
     })
     .select()
     .single();

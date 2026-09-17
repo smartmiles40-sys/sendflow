@@ -238,7 +238,7 @@ export function montarEmail(
   // Nenhum modelo declarou onde fica o rodapé: acrescenta um, porque e-mail de marketing
   // sem saída visível é reclamação de spam garantida.
   if (!/\{\{\s*rodape\s*\}\}/i.test(htmlBruto) && !html.includes('e/u/')) {
-    html += `<div style="margin:24px auto;max-width:600px;padding:0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;line-height:1.6;color:#8d96ad;text-align:center;">${rodape}</div>`;
+    html += `<div style="margin:24px auto;max-width:600px;padding:0 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;line-height:1.6;color:#6F8F8A;text-align:center;">${rodape}</div>`;
   }
 
   if (rastrear) html = reescreverLinks(html, opcoes);

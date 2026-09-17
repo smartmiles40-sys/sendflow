@@ -210,7 +210,7 @@ export function MultiDatePicker({
                   <span
                     aria-hidden="true"
                     className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] leading-none ${
-                      on ? 'bg-blue text-white' : 'border border-[#33405f]'
+                      on ? 'bg-blue text-on-blue' : 'border border-[#2A6166]'
                     }`}
                   >
                     {on ? '✓' : '+'}
@@ -261,7 +261,7 @@ export function MultiDatePicker({
           </span>
         </div>
         {sorted.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#2a3550] bg-surface2 px-3.5 py-6 text-center text-[13px] text-muted">
+          <div className="rounded-xl border border-dashed border-[#1F555A] bg-surface2 px-3.5 py-6 text-center text-[13px] text-muted">
             Nenhuma data ainda. Escolha um feriado ou adicione uma data acima.
           </div>
         ) : (
@@ -386,7 +386,7 @@ export function MultiDatePicker({
                             />
                             <label
                               htmlFor={`mdp-midia-file-${entry.date}`}
-                              className="block w-full cursor-pointer rounded-lg border border-dashed border-[#2a3550] bg-surface px-3 py-2.5 text-center text-[12.5px] text-muted transition-colors hover:border-blue2"
+                              className="block w-full cursor-pointer rounded-lg border border-dashed border-[#1F555A] bg-surface px-3 py-2.5 text-center text-[12.5px] text-muted transition-colors hover:border-blue2"
                             >
                               {dateUploading ? (
                                 <span>Enviando…</span>

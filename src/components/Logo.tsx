@@ -1,11 +1,16 @@
+import Image from 'next/image';
+
+/** Selo circular da Se Tu For, Eu Vou! (o mesmo do portal e das LPs) + o nome do sistema. */
 export function Logo() {
   return (
     <div className="flex items-center gap-2.5 px-1.5 py-1">
-      <svg viewBox="0 0 48 48" className="h-[26px] w-[26px]" aria-hidden="true">
-        <path d="M24 3 L40 45 L24 34 L8 45 Z" fill="#2E6BFF" />
-        <path d="M24 3 L24 34 L8 45 Z" fill="#0147FF" />
-      </svg>
-      <b className="font-display text-[18px] font-bold tracking-[0.14em]">INVT</b>
+      <Image src="/stfv-selo.png" alt="" width={36} height={36} className="h-9 w-9 shrink-0" priority />
+      <div className="min-w-0 leading-tight">
+        <b className="block font-display text-[19px] font-semibold tracking-[-0.01em]">SendFlow</b>
+        <span className="block truncate text-[10.5px] font-medium uppercase tracking-[0.12em] text-blue">
+          Se Tu For, Eu Vou!
+        </span>
+      </div>
     </div>
   );
 }

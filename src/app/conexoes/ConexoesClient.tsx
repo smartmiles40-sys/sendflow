@@ -13,8 +13,8 @@ interface QrCode {
 }
 
 const ESTILO_STATUS: Record<ConnectionStatus, { label: string; cls: string; dot: string; pulse?: boolean }> = {
-  conectada: { label: 'Conectada', cls: 'bg-green/10 text-[#7effcf]', dot: 'bg-green' },
-  conectando: { label: 'Conectando…', cls: 'bg-blue2/15 text-[#9cc0ff]', dot: 'bg-blue2', pulse: true },
+  conectada: { label: 'Conectada', cls: 'bg-green/10 text-[#D7F264]', dot: 'bg-green' },
+  conectando: { label: 'Conectando…', cls: 'bg-blue2/15 text-[#DFEFC5]', dot: 'bg-blue2', pulse: true },
   desconectada: { label: 'Desconectada', cls: 'bg-muted/15 text-muted', dot: 'bg-muted' },
   erro: { label: 'Com erro', cls: 'bg-orange/15 text-[#ffb183]', dot: 'bg-orange' },
 };
@@ -121,7 +121,7 @@ export function ConexoesClient({
         <button
           onClick={() => void criar()}
           disabled={criando || !nome.trim() || !configurada}
-          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {criando ? 'Criando…' : '＋ Conectar número'}
         </button>
@@ -315,7 +315,7 @@ function CartaoConexao({
               {aviso}
             </p>
           )}
-          {resultadoSync && <p className="mt-2 text-xs text-[#7effcf]">{resultadoSync}</p>}
+          {resultadoSync && <p className="mt-2 text-xs text-[#D7F264]">{resultadoSync}</p>}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -337,7 +337,7 @@ function CartaoConexao({
                 type="button"
                 onClick={() => void abrirQr()}
                 disabled={ocupado === 'qr'}
-                className="rounded-xl bg-blue px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#0a54ff] disabled:opacity-50"
+                className="rounded-xl bg-blue px-4 py-2.5 text-[13px] font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:opacity-50"
               >
                 {ocupado === 'qr' ? 'Gerando…' : 'Ler QR Code'}
               </button>
@@ -423,7 +423,7 @@ function PainelQr({
           <button
             type="button"
             onClick={onConferir}
-            className="rounded-xl bg-blue px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#0a54ff]"
+            className="rounded-xl bg-blue px-4 py-2.5 text-[13px] font-semibold text-on-blue transition-colors hover:bg-blue-hover"
           >
             Já li o código
           </button>

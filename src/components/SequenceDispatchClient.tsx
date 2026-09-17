@@ -278,7 +278,7 @@ export function SequenceDispatchClient({ sequence }: { sequence: Sequence }) {
           <div className="mt-5 flex justify-center gap-3">
             <Link
               href="/campanhas"
-              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff]"
+              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover"
             >
               Ver campanhas
             </Link>
@@ -306,7 +306,7 @@ export function SequenceDispatchClient({ sequence }: { sequence: Sequence }) {
         <h1 className="font-display text-[26px] font-semibold tracking-[-0.01em]">
           {sequence.nome}
         </h1>
-        <span className="rounded-full border border-blue2/30 bg-blue2/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#9cc0ff]">
+        <span className="rounded-full border border-blue2/30 bg-blue2/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#DFEFC5]">
           {categoriaLabel(sequence.categoria)}
         </span>
       </div>
@@ -432,7 +432,7 @@ export function SequenceDispatchClient({ sequence }: { sequence: Sequence }) {
               type="button"
               onClick={() => void submit()}
               disabled={!canSubmit}
-              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
             >
               {busy
                 ? 'Agendando…'
@@ -515,7 +515,7 @@ export function SequenceDispatchClient({ sequence }: { sequence: Sequence }) {
                             }`}
                           >
                             <div className="mb-2 flex flex-wrap items-center gap-2 text-[12px]">
-                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue/15 font-display text-[11px] font-semibold text-[#9cc0ff]">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue/15 font-display text-[11px] font-semibold text-[#DFEFC5]">
                                 {i + 1}
                               </span>
                               <span className="font-semibold text-ink">{formatWhen(enviarEm)}</span>

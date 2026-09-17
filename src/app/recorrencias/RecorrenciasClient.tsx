@@ -98,7 +98,7 @@ export function RecorrenciasClient({
         </div>
         <Link
           href="/recorrencias/nova"
-          className="rounded-xl bg-blue px-4 py-2.5 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff]"
+          className="rounded-xl bg-blue px-4 py-2.5 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover"
         >
           + Nova recorrência
         </Link>
@@ -146,7 +146,7 @@ export function RecorrenciasClient({
                 <h2 className="min-w-0 flex-1 font-display text-lg font-semibold leading-tight">
                   {r.nome}
                 </h2>
-                <span className="shrink-0 rounded-full border border-blue2/30 bg-blue2/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#9cc0ff]">
+                <span className="shrink-0 rounded-full border border-blue2/30 bg-blue2/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#DFEFC5]">
                   {categoriaLabel(r.categoria)}
                 </span>
               </div>
@@ -160,7 +160,7 @@ export function RecorrenciasClient({
                 {r.ativo ? (
                   r.proximas.length ? (
                     <>
-                      <span className="font-semibold text-[#b9c6e6]">Próximos envios:</span>{' '}
+                      <span className="font-semibold text-[#C9DCD8]">Próximos envios:</span>{' '}
                       {r.proximas.map((p) => formatWhen(p)).join(' · ')}
                     </>
                   ) : (

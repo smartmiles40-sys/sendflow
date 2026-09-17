@@ -130,7 +130,7 @@ export function SequenceEditorClient({ sequence }: { sequence: Sequence }) {
       </div>
       <div className="mb-[22px] flex items-center gap-2.5">
         <h1 className="font-display text-[26px] font-semibold tracking-[-0.01em]">Editar roteiro</h1>
-        <span className="rounded-full border border-blue2/30 bg-blue2/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#9cc0ff]">
+        <span className="rounded-full border border-blue2/30 bg-blue2/15 px-2.5 py-0.5 text-[11px] font-semibold text-[#DFEFC5]">
           {categoriaLabel(sequence.categoria)}
         </span>
       </div>
@@ -187,7 +187,7 @@ export function SequenceEditorClient({ sequence }: { sequence: Sequence }) {
       <button
         type="button"
         onClick={addStep}
-        className="mt-3.5 w-full rounded-xl2 border border-dashed border-[#2a3550] bg-surface2 px-4 py-3.5 text-center text-sm font-semibold text-blue2 transition-colors hover:border-blue2 hover:bg-white/5"
+        className="mt-3.5 w-full rounded-xl2 border border-dashed border-[#1F555A] bg-surface2 px-4 py-3.5 text-center text-sm font-semibold text-blue2 transition-colors hover:border-blue2 hover:bg-white/5"
       >
         ＋ Adicionar passo
       </button>
@@ -210,7 +210,7 @@ export function SequenceEditorClient({ sequence }: { sequence: Sequence }) {
           type="button"
           onClick={() => void save()}
           disabled={saving}
-          className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {saving ? 'Salvando…' : '💾 Salvar roteiro'}
         </button>

@@ -145,8 +145,8 @@ export function AudiencesClient({
                     className="sr-only"
                   />
                   <span
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs text-white transition-colors ${
-                      on ? 'border-blue bg-blue' : 'border-[#33405f]'
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs text-on-blue transition-colors ${
+                      on ? 'border-blue bg-blue' : 'border-[#2A6166]'
                     }`}
                     aria-hidden="true"
                   >
@@ -185,7 +185,7 @@ export function AudiencesClient({
             type="button"
             onClick={save}
             disabled={saving || !nome.trim()}
-            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
           >
             {saving ? 'Salvando…' : '💾 Salvar público'}
           </button>

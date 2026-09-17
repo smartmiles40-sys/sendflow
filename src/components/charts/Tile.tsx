@@ -10,7 +10,7 @@ import type { Veredicto } from '@/lib/kpis';
 
 const ESTILO_VEREDICTO: Record<Exclude<Veredicto, 'indefinido'>, { label: string; cls: string }> = {
   bom: { label: 'bom', cls: 'bg-[color:var(--color-bom)]/15 text-[#6ee06e]' },
-  ok: { label: 'ok', cls: 'bg-blue2/15 text-[#9cc0ff]' },
+  ok: { label: 'ok', cls: 'bg-blue2/15 text-[#DFEFC5]' },
   atencao: { label: 'atenção', cls: 'bg-[color:var(--color-atencao)]/15 text-[#ffd479]' },
   ruim: { label: 'abaixo do esperado', cls: 'bg-[color:var(--color-critico)]/15 text-[#ff9a9a]' },
 };

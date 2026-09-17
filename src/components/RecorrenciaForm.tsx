@@ -288,7 +288,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="block w-full rounded-xl border border-dashed border-[#2a3550] bg-surface2 px-4 py-[18px] text-center text-[13px] text-muted transition-colors hover:border-blue2 disabled:cursor-not-allowed"
+                className="block w-full rounded-xl border border-dashed border-[#1F555A] bg-surface2 px-4 py-[18px] text-center text-[13px] text-muted transition-colors hover:border-blue2 disabled:cursor-not-allowed"
               >
                 {uploading ? (
                   <span>Enviando arquivo…</span>
@@ -354,11 +354,11 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
             onClearError={() => clearError('audience')}
           />
 
-          <div className="mt-4 flex gap-2.5 rounded-xl border border-blue2/30 bg-blue/[0.08] px-3.5 py-3 text-[12.5px] text-[#b9c6e6]">
+          <div className="mt-4 flex gap-2.5 rounded-xl border border-blue2/30 bg-blue/[0.08] px-3.5 py-3 text-[12.5px] text-[#C9DCD8]">
             <span aria-hidden="true">🔄</span>
             <span>
               Ao salvar, as ocorrências futuras ainda não enviadas são{' '}
-              <b className="text-[#cdd8f2]">reescritas com este conteúdo</b>. O que já foi enviado
+              <b className="text-[#DCE9E6]">reescritas com este conteúdo</b>. O que já foi enviado
               não muda.
             </span>
           </div>
@@ -374,7 +374,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
               type="button"
               onClick={() => void submit()}
               disabled={busy || uploading}
-              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
             >
               {busy ? 'Salvando…' : editing ? '💾 Salvar alterações' : '🔄 Criar recorrência'}
             </button>

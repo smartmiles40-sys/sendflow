@@ -586,7 +586,7 @@ function NovaCampanha() {
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="block w-full rounded-xl border border-dashed border-[#2a3550] bg-surface2 px-4 py-[18px] text-center text-[13px] text-muted transition-colors hover:border-blue2 disabled:cursor-not-allowed"
+                className="block w-full rounded-xl border border-dashed border-[#1F555A] bg-surface2 px-4 py-[18px] text-center text-[13px] text-muted transition-colors hover:border-blue2 disabled:cursor-not-allowed"
               >
                 {uploading ? (
                   <span>Enviando arquivo…</span>
@@ -691,7 +691,7 @@ function NovaCampanha() {
                                 e.target.checked ? [...atual, l.id] : atual.filter((x) => x !== l.id),
                               );
                             }}
-                            className="h-4 w-4 accent-[#0147FF]"
+                            className="h-4 w-4 accent-[#D7F264]"
                           />
                           <span
                             className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -813,17 +813,17 @@ function NovaCampanha() {
             )}
           </Field>
 
-          <div className="mt-4 flex gap-2.5 rounded-xl border border-blue2/30 bg-blue/[0.08] px-3.5 py-3 text-[12.5px] text-[#b9c6e6]">
+          <div className="mt-4 flex gap-2.5 rounded-xl border border-blue2/30 bg-blue/[0.08] px-3.5 py-3 text-[12.5px] text-[#C9DCD8]">
             <span aria-hidden="true">⏱️</span>
             <span>
               O envio respeita o intervalo de{' '}
-              <b className="text-[#cdd8f2]">8–15s entre grupos</b> (anti-bloqueio). ~{effectiveCount}{' '}
+              <b className="text-[#DCE9E6]">8–15s entre grupos</b> (anti-bloqueio). ~{effectiveCount}{' '}
               grupos ≈ {formatDuration(est.minSec)}–{formatDuration(est.maxSec)} pra concluir.
             </span>
           </div>
 
           {multiProgress && (
-            <p className="mt-4 text-sm text-[#b9c6e6]" role="status" aria-live="polite">
+            <p className="mt-4 text-sm text-[#C9DCD8]" role="status" aria-live="polite">
               {multiProgress}
             </p>
           )}
@@ -844,7 +844,7 @@ function NovaCampanha() {
                 loading ||
                 (multiDia && !editing && multiEntries.length === 0)
               }
-              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
             >
               {busy
                 ? multiDia && !editing

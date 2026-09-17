@@ -72,7 +72,7 @@ SUPABASE_SERVICE_ROLE_KEY=...`}
           <button
             type="button"
             onClick={reset}
-            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0a54ff]"
+            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover"
           >
             Tentar de novo
           </button>

@@ -10,10 +10,10 @@ import { avaliar, formatarNumero, formatarTaxa, REFERENCIAS } from '@/lib/kpis';
 type Linha = EmailCampaign & { kpi: EmailKpi | null };
 
 const ESTILO: Record<EmailCampaignStatus, { label: string; cls: string; dot: string; pulse?: boolean }> = {
-  rascunho: { label: 'Rascunho', cls: 'bg-muted/15 text-[#c3cbe0]', dot: 'bg-muted' },
-  agendada: { label: 'Agendada', cls: 'bg-blue2/15 text-[#9cc0ff]', dot: 'bg-blue2' },
+  rascunho: { label: 'Rascunho', cls: 'bg-muted/15 text-[#C9DCD8]', dot: 'bg-muted' },
+  agendada: { label: 'Agendada', cls: 'bg-blue2/15 text-[#DFEFC5]', dot: 'bg-blue2' },
   enviando: { label: 'Enviando…', cls: 'bg-orange/15 text-[#ffb183]', dot: 'bg-orange', pulse: true },
-  enviada: { label: 'Enviada', cls: 'bg-green/10 text-[#7effcf]', dot: 'bg-green' },
+  enviada: { label: 'Enviada', cls: 'bg-green/10 text-[#D7F264]', dot: 'bg-green' },
   cancelada: { label: 'Cancelada', cls: 'bg-muted/15 text-muted', dot: 'bg-muted' },
   erro: { label: 'Erro', cls: 'bg-orange/15 text-[#ffb183]', dot: 'bg-orange' },
 };
@@ -98,7 +98,7 @@ export function EmailListaClient({
         </div>
         <Link
           href="/email/nova"
-          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue px-[18px] py-3 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff]"
+          className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue px-[18px] py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover"
         >
           ＋ Nova campanha
         </Link>

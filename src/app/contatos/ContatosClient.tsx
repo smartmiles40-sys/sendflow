@@ -42,7 +42,7 @@ export function ContatosClient({
         <button
           type="button"
           onClick={() => setImportando(true)}
-          className="shrink-0 rounded-xl bg-blue px-[18px] py-3 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff]"
+          className="shrink-0 rounded-xl bg-blue px-[18px] py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover"
         >
           ↑ Importar CSV
         </button>
@@ -243,7 +243,7 @@ function TabelaContatos({
 function Selo({ status, canal }: { status: string; canal: string }) {
   if (status === 'ativo') {
     return (
-      <span className="rounded-full bg-green/10 px-2 py-0.5 text-[10px] font-semibold text-[#7effcf]">
+      <span className="rounded-full bg-green/10 px-2 py-0.5 text-[10px] font-semibold text-[#D7F264]">
         {canal} ok
       </span>
     );
@@ -314,7 +314,7 @@ function Listas({ listas, onMudou }: { listas: Lista[]; onMudou: (l: Lista[]) =>
           type="button"
           onClick={() => void criar()}
           disabled={salvando || !nome.trim()}
-          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0a54ff] disabled:opacity-50"
+          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:opacity-50"
         >
           ＋ Criar lista
         </button>

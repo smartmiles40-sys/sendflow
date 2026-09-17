@@ -118,7 +118,7 @@ export function SequenceStepRow({
     <div className="rounded-xl2 border border-border bg-surface p-[18px]">
       {/* Header: number + reorder/remove */}
       <div className="mb-4 flex items-center gap-2">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue/15 font-display text-[13px] font-semibold text-[#9cc0ff]">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue/15 font-display text-[13px] font-semibold text-[#DFEFC5]">
           {index + 1}
         </span>
         <span className="text-[13px] font-semibold text-muted">Passo {index + 1}</span>
@@ -219,7 +219,7 @@ export function SequenceStepRow({
               key={c}
               type="button"
               onClick={() => insertChip(c)}
-              className="rounded-lg border border-blue2/30 bg-blue2/10 px-2 py-1 font-mono text-[11px] text-[#9cc0ff] transition-colors hover:bg-blue2/20"
+              className="rounded-lg border border-blue2/30 bg-blue2/10 px-2 py-1 font-mono text-[11px] text-[#DFEFC5] transition-colors hover:bg-blue2/20"
             >
               {c}
             </button>
@@ -305,7 +305,7 @@ export function SequenceStepRow({
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={uploading}
-                className="block w-full rounded-xl border border-dashed border-[#2a3550] bg-surface2 px-4 py-3 text-center text-[13px] text-muted transition-colors hover:border-blue2 disabled:cursor-not-allowed"
+                className="block w-full rounded-xl border border-dashed border-[#1F555A] bg-surface2 px-4 py-3 text-center text-[13px] text-muted transition-colors hover:border-blue2 disabled:cursor-not-allowed"
               >
                 {uploading ? (
                   'Enviando arquivo…'

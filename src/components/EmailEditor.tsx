@@ -194,7 +194,7 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
                   type="checkbox"
                   checked={testeAB}
                   onChange={(e) => setTesteAB(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-[#0147FF]"
+                  className="mt-0.5 h-4 w-4 accent-[#D7F264]"
                 />
                 <span>
                   <b>Testar dois assuntos (A/B)</b>
@@ -311,7 +311,7 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
                             e.target.checked ? [...atual, l.id] : atual.filter((x) => x !== l.id),
                           )
                         }
-                        className="h-4 w-4 accent-[#0147FF]"
+                        className="h-4 w-4 accent-[#D7F264]"
                       />
                       <span
                         className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -386,7 +386,7 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
                 }
               }}
               disabled={salvando || !podeAgendar || !dados.provedor}
-              className="rounded-xl bg-blue px-6 py-3 text-sm font-semibold text-white shadow-[0_6px_20px_rgba(1,71,255,.35)] transition-colors hover:bg-[#0a54ff] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+              className="rounded-xl bg-blue px-6 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
             >
               {salvando ? 'Salvando…' : agendar ? 'Agendar envio' : 'Enviar agora'}
             </button>
