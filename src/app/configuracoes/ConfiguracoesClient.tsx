@@ -79,7 +79,7 @@ export function ConfiguracoesClient({
             <input
               value={remetente.nome}
               onChange={(e) => setRemetente({ ...remetente, nome: e.target.value })}
-              placeholder="Equipe Inovvatur"
+              placeholder="Equipe Se Tu For, Eu Vou"
               className={inputCls}
             />
           </Field>

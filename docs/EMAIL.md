@@ -96,6 +96,12 @@ entrega degrada em silêncio, e o sintoma aparece como "a taxa de abertura caiu"
 
 O rodapé com o link também é injetado automaticamente, mesmo que o modelo não peça.
 
+O link do rodapé **abre uma página com um botão**; quem descadastra é o botão. Abrir o
+link sozinho não tira ninguém da lista, de propósito: antivírus de e-mail corporativo
+(Microsoft Safe Links e parecidos) visita todos os links da mensagem antes de a pessoa
+ler, e com descadastro direto no link esses contatos sairiam da lista sem ter pedido. O
+botão nativo do Gmail continua descadastrando em um clique.
+
 ### 3. Remetente estável
 
 Use sempre o mesmo `De:`, do domínio verificado. Trocar de remetente a cada campanha é

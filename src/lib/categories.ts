@@ -1,7 +1,9 @@
+// As frentes da agência. As chaves também estão no CHECK do banco
+// (supabase/migrations/0014_categorias_da_agencia.sql): mudar uma exige mudar a outra.
 export const CATEGORIAS = [
-  { key: 'agentepro', label: 'AgentePRO' },
-  { key: 'academy', label: 'Academy' },
-  { key: 'p360', label: 'P360' },
+  { key: 'lives', label: 'Lives' },
+  { key: 'expedicoes', label: 'Expedições' },
+  { key: 'comunidade', label: 'Comunidade' },
   { key: 'avulsas', label: 'Avulsas' },
 ] as const;
 

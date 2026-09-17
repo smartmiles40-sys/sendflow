@@ -84,7 +84,7 @@ export function buildRecorrenciaRow(
     mencionar_todos: Boolean(rec.mencionar_todos),
     audience_id: rec.audience_id ?? null,
     group_ids: rec.group_ids && rec.group_ids.length ? rec.group_ids : null,
-    // Recorrência é sempre para grupos: o molde semanal nasceu do caso "P360 toda
+    // Recorrência é sempre para grupos: o molde semanal nasceu do caso "comunidade toda
     // segunda" e não tem tela para escolher lista de contatos.
     alvo: 'grupos',
     list_ids: null,

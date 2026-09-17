@@ -45,7 +45,7 @@ describe('buildCampaignRow', () => {
     expect(buildCampaignRow(draft, {}, now, { asDraft: false }).categoria).toBe('avulsas');
   });
   it('carries a valid categoria', () => {
-    expect(buildCampaignRow({ ...draft, categoria: 'p360' }, {}, now, { asDraft: false }).categoria).toBe('p360');
+    expect(buildCampaignRow({ ...draft, categoria: 'comunidade' }, {}, now, { asDraft: false }).categoria).toBe('comunidade');
   });
 
   // ── alvo: grupos vs. contatos ──────────────────────────────────────────────────

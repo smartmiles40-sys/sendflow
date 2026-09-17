@@ -58,7 +58,7 @@ export function parseRecorrencia(body: Record<string, unknown>): {
   return {
     value: {
       nome,
-      categoria: isCategoria(body.categoria) ? body.categoria : 'p360',
+      categoria: isCategoria(body.categoria) ? body.categoria : 'comunidade',
       dia_semana: Number.isInteger(diaSemana) ? diaSemana : 1,
       hora,
       tipo: TIPOS.includes(tipo) ? tipo : 'texto',

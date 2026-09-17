@@ -4,9 +4,9 @@
 
 1. Criar um projeto em [supabase.com](https://supabase.com).
 2. **SQL Editor → New query** → colar **`supabase/schema-completo.sql`** inteiro e
-   rodar. São as 13 migrations concatenadas na ordem certa, num paste só.
+   rodar. São as 14 migrations concatenadas na ordem certa, num paste só.
    (Alternativa: rodar `supabase/migrations/` uma a uma, da `0001_init.sql` à
-   `0013_revoga_funcoes_de_anon.sql`. Ordem trocada quebra de um jeito difícil de diagnosticar,
+   `0014_categorias_da_agencia.sql`. Ordem trocada quebra de um jeito difícil de diagnosticar,
    porque uma tabela referencia outra que ainda não existe.)
 3. **Storage → New bucket** → nome `campanhas-midia`, marcar **Public**.
 4. **Settings → API** → copiar a **Project URL** e a **service_role key**.
@@ -94,7 +94,7 @@ Secret** para `RESEND_WEBHOOK_SECRET`.
 
 ## Checklist antes do primeiro disparo
 
-- [ ] O banco foi montado (`schema-completo.sql`, ou as 13 migrations em ordem)
+- [ ] O banco foi montado (`schema-completo.sql`, ou as 14 migrations em ordem)
 - [ ] Bucket `campanhas-midia` criado e **público**
 - [ ] `APP_URL` com o domínio definitivo
 - [ ] `AUTH_SECRET` e `APP_USERS` definidos — **sem eles o painel fica aberto na internet**

@@ -7,8 +7,10 @@
 #   bash scripts/vercel-env-push.sh
 #
 # - Pula variável vazia (o sistema lista em Configurações o que ainda falta).
-# - Pula APP_URL: localmente ela é http://localhost:3000; na Vercel o app usa o domínio
-#   de produção do projeto (VERCEL_PROJECT_PRODUCTION_URL), que é estável.
+# - APP_URL: localmente é http://localhost:3000; na Vercel vai FIXA no endereço público
+#   (sendflow-smoky.vercel.app). Os endereços *-smartmiles40-sys-projects.vercel.app pedem
+#   login da Vercel e bloqueariam pixel, clique, descadastro e webhooks. Ela vai gravada em
+#   cada e-mail enviado: troque só antes do primeiro disparo (SENDFLOW_URL=... bash ...).
 # - Rodar de novo sobrescreve (--force), então serve também para atualizar um valor.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -18,7 +20,7 @@ while IFS= read -r linha || [ -n "$linha" ]; do
   case "$linha" in ''|\#*) continue ;; esac
   chave="${linha%%=*}"
   valor="${linha#*=}"
-  [ "$chave" = "APP_URL" ] && continue
+  [ "$chave" = "APP_URL" ] && valor="${SENDFLOW_URL:-https://sendflow-smoky.vercel.app}"
   [ -z "$valor" ] && { echo "pulada (vazia): $chave"; continue; }
   printf '%s' "$valor" | npx --yes vercel env add "$chave" production --force >/dev/null
   echo "enviada: $chave"

@@ -130,7 +130,7 @@ export function RecorrenciasClient({
 
       {items.length === 0 && !loadError ? (
         <div className="rounded-xl2 border border-border bg-surface p-6 text-sm text-muted">
-          Nenhuma recorrência ainda. Crie uma para, por exemplo, mandar a mensagem do P360 toda
+          Nenhuma recorrência ainda. Crie uma para, por exemplo, mandar a mensagem da comunidade toda
           segunda de manhã.
         </div>
       ) : (

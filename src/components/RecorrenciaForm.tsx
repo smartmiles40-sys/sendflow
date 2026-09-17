@@ -55,7 +55,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [nome, setNome] = useState(initial?.nome ?? '');
-  const [categoria, setCategoria] = useState<CategoriaKey>(initial?.categoria ?? 'p360');
+  const [categoria, setCategoria] = useState<CategoriaKey>(initial?.categoria ?? 'comunidade');
   const [diaSemana, setDiaSemana] = useState<number>(initial?.dia_semana ?? 1);
   const [hora, setHora] = useState(initial?.hora ?? '09:00');
   const [tipo, setTipo] = useState<CampaignType>(initial?.tipo ?? 'texto');
@@ -220,7 +220,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
                 setNome(e.target.value);
                 clearError('nome');
               }}
-              placeholder="P360 — bom dia de segunda"
+              placeholder="Comunidade — bom dia de segunda"
               className={inputCls}
             />
           </Field>

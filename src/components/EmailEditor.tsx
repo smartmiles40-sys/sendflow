@@ -239,7 +239,7 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
                 <input
                   value={remetenteNome}
                   onChange={(e) => setRemetenteNome(e.target.value)}
-                  placeholder="Equipe Inovvatur"
+                  placeholder="Equipe Se Tu For, Eu Vou"
                   className={inputCls}
                 />
               </Field>

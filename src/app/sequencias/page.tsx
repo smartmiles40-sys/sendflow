@@ -24,7 +24,7 @@ export default async function SequenciasPage() {
   const items: SequenceListItem[] = rows.map((r) => ({
     id: r.id,
     nome: r.nome,
-    categoria: (isCategoria(r.categoria) ? r.categoria : 'academy') as CategoriaKey,
+    categoria: (isCategoria(r.categoria) ? r.categoria : 'lives') as CategoriaKey,
     stepCount: Array.isArray(r.steps) ? r.steps.length : 0,
   }));
 

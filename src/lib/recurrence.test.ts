@@ -73,8 +73,8 @@ describe('nextOccurrences', () => {
 
 const REC: Recorrencia = {
   id: 'r1',
-  nome: 'P360 semanal',
-  categoria: 'p360',
+  nome: 'Comunidade semanal',
+  categoria: 'comunidade',
   dia_semana: 1,
   hora: '09:00',
   tipo: 'texto',
@@ -92,9 +92,9 @@ describe('buildRecorrenciaRow', () => {
   it('copia o conteúdo e o público do molde e agenda a ocorrência', () => {
     const row = buildRecorrenciaRow(REC, '2026-08-31T12:00:00.000Z');
     expect(row).toEqual({
-      nome: 'P360 semanal — 31/08',
+      nome: 'Comunidade semanal — 31/08',
       tipo: 'texto',
-      categoria: 'p360',
+      categoria: 'comunidade',
       mensagem: 'Bom dia, pessoal!',
       midia_url: null,
       mencionar_todos: false,
@@ -119,7 +119,7 @@ describe('buildRecorrenciaRow', () => {
   it('usa a data de São Paulo no nome, não a UTC', () => {
     // 01:00Z de 01/09 ainda é 31/08 às 22:00 em São Paulo.
     const row = buildRecorrenciaRow(REC, '2026-09-01T01:00:00.000Z');
-    expect(row.nome).toBe('P360 semanal — 31/08');
+    expect(row.nome).toBe('Comunidade semanal — 31/08');
   });
 
   it('mantém mídia e grupos avulsos quando o molde os tem', () => {

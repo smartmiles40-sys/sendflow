@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
   const row = {
     nome,
-    categoria: isCategoria(body.categoria) ? body.categoria : 'academy',
+    categoria: isCategoria(body.categoria) ? body.categoria : 'lives',
     steps: Array.isArray(body.steps) ? body.steps : [],
   };
 

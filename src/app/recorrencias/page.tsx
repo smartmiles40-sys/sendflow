@@ -33,7 +33,7 @@ export default async function RecorrenciasPage() {
 
   const rows = ((data ?? []) as Recorrencia[]).map((r) => ({
     ...r,
-    categoria: (isCategoria(r.categoria) ? r.categoria : 'p360') as CategoriaKey,
+    categoria: (isCategoria(r.categoria) ? r.categoria : 'comunidade') as CategoriaKey,
   }));
 
   const [{ data: audData }, { data: campData }] = await Promise.all([

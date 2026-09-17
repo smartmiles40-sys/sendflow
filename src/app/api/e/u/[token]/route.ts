@@ -5,16 +5,22 @@ export const dynamic = 'force-dynamic';
 /**
  * Descadastro.
  *
- * Dois caminhos chegam aqui, e os dois precisam funcionar:
- *   • GET  — a pessoa clicou em "Descadastrar meu e-mail" no rodapé.
- *   • POST — o botão "Cancelar inscrição" do próprio Gmail/Yahoo, via o cabeçalho
- *            `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058). Desde 2024
- *            isso é EXIGÊNCIA para quem manda volume: sem ele, a entrega degrada em
- *            silêncio e o sintoma aparece como "a taxa de abertura caiu".
+ * Três caminhos chegam aqui:
+ *   • GET  — a pessoa clicou em "Descadastrar meu e-mail" no rodapé. Mostra UM botão;
+ *            NÃO descadastra.
+ *   • POST do botão acima — descadastra e mostra a confirmação.
+ *   • POST do próprio Gmail/Yahoo, via `List-Unsubscribe-Post: List-Unsubscribe=One-Click`
+ *     (RFC 8058) — descadastra e devolve só um 200. Desde 2024 isso é EXIGÊNCIA para quem
+ *     manda volume: sem ele a entrega degrada em silêncio.
  *
- * Um clique, sem confirmação e sem login. Pôr obstáculo aqui é o que transforma um
- * descadastro em uma denúncia de spam — e denúncia de spam machuca o domínio inteiro,
- * enquanto um descadastro custa um contato.
+ * Por que o GET não descadastra mais: antivírus de e-mail corporativo (Microsoft Safe
+ * Links, Proofpoint, Mimecast) ABRE os links da mensagem para ver se são seguros, antes
+ * de a pessoa ler. Com o descadastro no GET, contato de empresa com esse tipo de proteção
+ * saía da lista sozinho — sem nunca ter pedido, e sem ninguém perceber. Esses robôs
+ * seguem links, mas não enviam formulário; é por isso que a RFC 8058 exige POST.
+ *
+ * Continua sendo um clique, sem login: pôr obstáculo aqui é o que transforma um
+ * descadastro em denúncia de spam, e denúncia machuca o domínio inteiro.
  */
 async function descadastrar(token: string): Promise<boolean> {
   if (!token || token.startsWith('teste-')) return false;
@@ -27,39 +33,74 @@ async function descadastrar(token: string): Promise<boolean> {
   }
 }
 
-export async function POST(_req: Request, { params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
-  await descadastrar(token);
-  // O provedor espera só um 200; ninguém lê este corpo.
-  return new Response('OK', { status: 200 });
+/** O POST do Gmail/Yahoo manda exatamente `List-Unsubscribe=One-Click` no corpo. */
+function ehUmCliqueDoProvedor(corpo: string): boolean {
+  return /(^|&)List-Unsubscribe=One-Click(&|$)/i.test(corpo.trim());
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  const corpo = await req.text().catch(() => '');
   const ok = await descadastrar(token);
-  return new Response(pagina(ok), {
+
+  // O provedor espera só um 200; ninguém lê este corpo.
+  if (ehUmCliqueDoProvedor(corpo)) return new Response('OK', { status: 200 });
+
+  return html(ok ? 'feito' : 'nao-encontrado');
+}
+
+export async function GET() {
+  return html('confirmar');
+}
+
+type Estado = 'confirmar' | 'feito' | 'nao-encontrado';
+
+function html(estado: Estado): Response {
+  return new Response(pagina(estado), {
     status: 200,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Robots-Tag': 'noindex',
+    },
   });
 }
 
 /**
- * Página de confirmação. HTML inline, sem depender do layout do app: esta é a única
- * tela do sistema que um estranho vê, e ela precisa carregar mesmo que o resto esteja
- * fora do ar. Sem JavaScript, sem fonte externa, sem imagem.
+ * Página única, HTML inline e sem depender do layout do app: é a única tela do sistema
+ * que um estranho vê, e ela precisa carregar mesmo que o resto esteja fora do ar. Sem
+ * JavaScript, sem fonte externa, sem imagem. O formulário posta para a própria URL.
  */
-function pagina(ok: boolean): string {
-  const titulo = ok ? 'Pronto, você saiu da lista' : 'Não encontramos este cadastro';
-  const texto = ok
-    ? 'Você não vai mais receber nossos e-mails. Se foi sem querer, é só falar com a gente que a inscrição volta.'
-    : 'O link pode ter expirado ou o descadastro já foi feito antes. De qualquer forma, você não está mais na lista.';
+function pagina(estado: Estado): string {
+  const conteudo = {
+    confirmar: {
+      titulo: 'Sair da lista de e-mails',
+      texto: 'Clique no botão abaixo e você não recebe mais nossos e-mails.',
+    },
+    feito: {
+      titulo: 'Pronto, você saiu da lista',
+      texto:
+        'Você não vai mais receber nossos e-mails. Se foi sem querer, é só falar com a gente que a inscrição volta.',
+    },
+    'nao-encontrado': {
+      titulo: 'Não encontramos este cadastro',
+      texto:
+        'O link pode ter expirado ou o descadastro já foi feito antes. De qualquer forma, você não está mais na lista.',
+    },
+  }[estado];
+
+  const botao =
+    estado === 'confirmar'
+      ? '<form method="post"><input type="hidden" name="confirmar" value="1"><button type="submit">Descadastrar meu e-mail</button></form>'
+      : '';
+
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>${titulo}</title>
+<title>${conteudo.titulo}</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
@@ -74,6 +115,13 @@ function pagina(ok: boolean): string {
   }
   h1 { margin: 0 0 12px; font-size: 22px; line-height: 1.3; }
   p  { margin: 0; color: #5a6480; }
+  form { margin-top: 24px; }
+  button {
+    font: inherit; font-weight: 600; color: #fff; background: #0147ff; border: 0;
+    border-radius: 10px; padding: 14px 28px; min-height: 48px; width: 100%; cursor: pointer;
+  }
+  button:hover { background: #0039d1; }
+  button:focus-visible { outline: 3px solid #7fa6ff; outline-offset: 2px; }
   .marca { margin-top: 26px; font-size: 12px; letter-spacing: .14em; color: #98a1ba; }
   @media (prefers-color-scheme: dark) {
     body { background: #04070f; color: #f6f8ff; }
@@ -84,8 +132,9 @@ function pagina(ok: boolean): string {
 </head>
 <body>
   <main class="cartao">
-    <h1>${titulo}</h1>
-    <p>${texto}</p>
+    <h1>${conteudo.titulo}</h1>
+    <p>${conteudo.texto}</p>
+    ${botao}
     <div class="marca">SENDFLOW</div>
   </main>
 </body>

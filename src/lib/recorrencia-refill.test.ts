@@ -13,8 +13,8 @@ const AGORA = new Date('2026-08-28T12:00:00.000Z');
 
 const REC: Recorrencia = {
   id: 'r1',
-  nome: 'P360 semanal',
-  categoria: 'p360',
+  nome: 'Comunidade semanal',
+  categoria: 'comunidade',
   dia_semana: 1, // segunda
   hora: '09:00',
   tipo: 'texto',
@@ -108,7 +108,7 @@ describe('sincronizarFuturas', () => {
     expect(updates).toHaveLength(2);
     // O primeiro update reescreve o conteúdo a partir do molde…
     expect(updates[0].args[0]).toMatchObject({
-      nome: 'P360 semanal — 31/08',
+      nome: 'Comunidade semanal — 31/08',
       mensagem: 'Bom dia!',
       audience_id: 'aud-1',
     });
