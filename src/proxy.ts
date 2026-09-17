@@ -77,8 +77,15 @@ function ehPublico(pathname: string): boolean {
 export const config = {
   /**
    * Sem `matcher`, o proxy rodaria em CADA requisição — inclusive CSS, JS e imagens —
-   * e a página de login apareceria sem estilo nenhum. O padrão abaixo exclui os
-   * caminhos internos do Next e os arquivos estáticos.
+   * e a página de login apareceria sem estilo nenhum.
+   *
+   * Aqui só ficam de fora os caminhos que o próprio Next serve (`/_next/...`) e os
+   * arquivos soltos do `public/`, nomeados um a um.
+   *
+   * O padrão anterior excluía QUALQUER caminho terminado em `.png`, `.svg`, `.woff2`…
+   * — e um caminho não é um arquivo: `/campanhas/abc.png` é a página de campanha, que
+   * passava direto pelo login. Medido em produção em 17/09/2026: devolvia o painel
+   * inteiro, com menu e dados, sem cookie nenhum. Nunca filtrar acesso por extensão.
    */
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|woff2?)$).*)'],
+  matcher: ['/((?!_next/|stfv-selo\\.png$|icon\\.png$|apple-icon\\.png$|favicon\\.ico$|robots\\.txt$).*)'],
 };

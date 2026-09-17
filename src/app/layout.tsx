@@ -13,7 +13,10 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       <body className="min-h-full font-sans antialiased">
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 overflow-auto px-8 py-8 md:px-9 md:py-[30px]">{children}</main>
+          {/* pt-16 no celular abre espaço para o cabeçalho fixo com o botão de menu. */}
+          <main className="min-w-0 flex-1 overflow-auto px-4 pb-8 pt-16 md:px-9 md:py-[30px]">
+            {children}
+          </main>
         </div>
       </body>
     </html>

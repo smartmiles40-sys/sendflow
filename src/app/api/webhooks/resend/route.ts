@@ -75,11 +75,16 @@ export async function POST(req: Request) {
   // falharia sempre.
   const corpo = await req.text();
 
+  // Sem segredo, RECUSA. O contrário (aceitar qualquer POST enquanto a variável não
+  // existir) deixaria qualquer pessoa marcar um envio como bounce ou spam — e
+  // `registrar_falha_email` descadastra o contato para sempre. Falhar fechado aqui custa
+  // uma linha vermelha na tela de Configurações; falhar aberto custa a base.
   const segredo = (process.env.RESEND_WEBHOOK_SECRET ?? '').trim();
-  if (segredo) {
-    if (!assinaturaSvixConfere(corpo, req.headers, segredo)) {
-      return NextResponse.json({ error: 'assinatura inválida' }, { status: 401 });
-    }
+  if (!segredo) {
+    return NextResponse.json({ error: 'RESEND_WEBHOOK_SECRET não configurado' }, { status: 503 });
+  }
+  if (!assinaturaSvixConfere(corpo, req.headers, segredo)) {
+    return NextResponse.json({ error: 'assinatura inválida' }, { status: 401 });
   }
 
   let payload: { type?: string; data?: { email_id?: string; reason?: string; bounce?: { message?: string } } };

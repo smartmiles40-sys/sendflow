@@ -54,6 +54,7 @@ export function Sidebar() {
   const path = usePathname() ?? '';
   const router = useRouter();
   const [conexoes, setConexoes] = useState<ResumoConexoes | null>(null);
+  const [menuAberto, setMenuAberto] = useState(false);
 
   // O rodapé mostra o estado real dos números. Antes havia ali um selo fixo dizendo
   // "Motor n8n + Z-API" — decorativo, e que continuaria verde com tudo desconectado.
@@ -86,8 +87,43 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex min-h-screen w-60 shrink-0 flex-col gap-6 border-r border-border bg-gradient-to-b from-[#080C18] to-[#05080F] p-4">
-      <Logo />
+    <>
+      {/* No celular a barra lateral fixa de 240px sobrava ~70px de conteúdo: o texto quebrava
+          uma palavra por linha. Abaixo de md ela vira uma gaveta, aberta por este cabeçalho. */}
+      <header className="fixed inset-x-0 top-0 z-40 flex items-center gap-2 border-b border-border bg-surface px-3 py-2 md:hidden">
+        <button
+          type="button"
+          onClick={() => setMenuAberto((v) => !v)}
+          aria-expanded={menuAberto}
+          aria-controls="menu-principal"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border text-ink transition-colors hover:bg-blue/10"
+        >
+          <span className="sr-only">{menuAberto ? 'Fechar menu' : 'Abrir menu'}</span>
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            {menuAberto ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+          </svg>
+        </button>
+        <Logo />
+      </header>
+
+      {menuAberto && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() => setMenuAberto(false)}
+          className="fixed inset-0 z-40 bg-bg/70 md:hidden"
+        />
+      )}
+
+      <aside
+        id="menu-principal"
+        className={`fixed inset-y-0 left-0 z-50 flex w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-border bg-gradient-to-b from-surface to-bg p-4 transition-transform duration-200 ease-out md:static md:min-h-screen md:translate-x-0 ${
+          menuAberto ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="md:block">
+          <Logo />
+        </div>
 
       <nav className="flex flex-col gap-5">
         {grupos.map((grupo, i) => (
@@ -104,6 +140,8 @@ export function Sidebar() {
                   key={it.href}
                   href={it.href}
                   aria-current={active ? 'page' : undefined}
+                  // No celular a gaveta cobre a tela: escolher um destino fecha ela.
+                  onClick={() => setMenuAberto(false)}
                   className={`flex items-center gap-[11px] rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                     active ? 'bg-blue/15 text-ink' : 'text-muted hover:bg-white/5 hover:text-ink'
                   }`}
@@ -137,7 +175,8 @@ export function Sidebar() {
           Sair
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 

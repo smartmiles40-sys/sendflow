@@ -62,6 +62,10 @@
   }
 }
 
+/* Sem isto, barra de rolagem, <select>, seletor de data e checkbox nativos abrem em
+   tema CLARO dentro de um painel escuro. */
+:root { color-scheme: dark; }
+
 html, body { height: 100%; }
 body {
   background-color: #051C1E;
@@ -79,6 +83,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
 }
