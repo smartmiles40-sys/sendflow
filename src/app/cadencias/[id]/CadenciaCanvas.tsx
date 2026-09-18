@@ -24,7 +24,7 @@ interface Kpi {
 
 type Passo = Campaign & { kpi: Kpi | null };
 
-const ICONE: Record<string, string> = { texto: '💬', imagem: '🖼️', video: '🎬', pdf: '📄' };
+const ICONE: Record<string, string> = { texto: '💬', imagem: '🖼️', video: '🎬', pdf: '📄', enquete: '📊' };
 
 /** "em 3h", "em 2 dias", "há 5 min" — o quanto falta, que é o que a equipe quer saber. */
 function relativo(iso: string, agora: number): string {
@@ -138,6 +138,8 @@ export function CadenciaCanvas({ id }: { id: string }) {
       mencionar_todos: p.mencionar_todos,
       enviar_em: p.enviar_em ?? new Date().toISOString(),
       status: p.status,
+      enquete_opcoes: p.enquete_opcoes,
+      enquete_multipla: p.enquete_multipla,
     });
   }
 
@@ -337,6 +339,9 @@ export function CadenciaCanvas({ id }: { id: string }) {
                     )}
                     <p className="line-clamp-3 min-w-0 flex-1 whitespace-pre-wrap break-words text-[13.5px] leading-snug text-[#C9DCD8]">
                       {p.mensagem || <span className="text-muted">(sem texto)</span>}
+                      {p.tipo === 'enquete' && p.enquete_opcoes?.length ? (
+                        <span className="mt-1 block text-[12.5px] text-muted">{p.enquete_opcoes.join(' · ')}</span>
+                      ) : null}
                     </p>
                   </div>
 

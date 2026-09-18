@@ -296,7 +296,7 @@ export async function listarGrupos(instanceName: string): Promise<GrupoEvolution
 
 // ── Envio ────────────────────────────────────────────────────────────────────────
 
-export type TipoMensagem = 'texto' | 'imagem' | 'video' | 'pdf' | 'audio';
+export type TipoMensagem = 'texto' | 'imagem' | 'video' | 'pdf' | 'audio' | 'enquete';
 
 export interface Envio {
   destino: string;
@@ -305,6 +305,8 @@ export interface Envio {
   midiaUrl?: string | null;
   /** Só tem efeito em grupo — em conversa individual o WhatsApp ignora. */
   mencionarTodos?: boolean;
+  /** Só para `tipo: 'enquete'`: a pergunta vai em `texto`. */
+  enquete?: { opcoes: string[]; multipla: boolean };
 }
 
 const MIME_POR_EXTENSAO: Record<string, string> = {
@@ -349,6 +351,21 @@ export function montarEnvio(
   // No Z-API isso exigia uma chamada extra de group-metadata e montar a lista à mão.
   const mencao =
     envio.mencionarTodos && ehGrupo(envio.destino) ? { mentionsEveryOne: true } : {};
+
+  if (envio.tipo === 'enquete') {
+    const opcoes = envio.enquete?.opcoes ?? [];
+    return {
+      caminho: `/message/sendPoll/${instancia}`,
+      corpo: {
+        number,
+        name: envio.texto,
+        // 1 = escolha única; o total de opções = "Permitir várias respostas".
+        selectableCount: envio.enquete?.multipla ? opcoes.length : 1,
+        values: opcoes,
+        ...mencao,
+      },
+    };
+  }
 
   if (envio.tipo === 'texto' || !envio.midiaUrl) {
     return {

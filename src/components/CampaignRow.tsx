@@ -13,6 +13,7 @@ const typeIcon: Record<CampaignType, string> = {
   imagem: '🖼️',
   video: '🎬',
   pdf: '📄',
+  enquete: '📊',
 };
 
 const typeLabel: Record<CampaignType, string> = {
@@ -20,6 +21,7 @@ const typeLabel: Record<CampaignType, string> = {
   imagem: 'Imagem + texto',
   video: 'Vídeo + legenda',
   pdf: 'PDF + texto',
+  enquete: 'Enquete',
 };
 
 // Small muted line under the date, derived from status (no live "relative time"

@@ -261,6 +261,8 @@ interface FilaItem {
     tipo: TipoMensagem;
     midia_url: string | null;
     mencionar_todos: boolean;
+    enquete_opcoes: string[] | null;
+    enquete_multipla: boolean | null;
   } | null;
 }
 
@@ -308,7 +310,7 @@ async function drenarConexao(
       .from('campaign_recipients')
       .select(
         'id,campaign_id,destino,destino_nome,tentativas,' +
-          'campaigns!inner(nome,mensagem,tipo,midia_url,mencionar_todos,status)',
+          'campaigns!inner(nome,mensagem,tipo,midia_url,mencionar_todos,enquete_opcoes,enquete_multipla,status)',
       )
       .eq('status', 'pendente')
       .eq('connection_id', conexao.id)
@@ -343,6 +345,10 @@ async function drenarConexao(
         texto: campanha.mensagem,
         midiaUrl: campanha.midia_url,
         mencionarTodos: campanha.mencionar_todos,
+        enquete:
+          campanha.tipo === 'enquete'
+            ? { opcoes: campanha.enquete_opcoes ?? [], multipla: Boolean(campanha.enquete_multipla) }
+            : undefined,
       });
       await supabase
         .from('campaign_recipients')

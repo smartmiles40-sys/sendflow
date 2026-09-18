@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   if (!draft || typeof draft !== 'object') {
     return NextResponse.json({ error: 'draft é obrigatório' }, { status: 400 });
   }
-  if (!['texto', 'imagem', 'video', 'pdf'].includes(draft.tipo)) {
+  if (!['texto', 'imagem', 'video', 'pdf', 'enquete'].includes(draft.tipo)) {
     return NextResponse.json({ errors: [{ field: 'tipo', message: 'Tipo inválido.' }] }, { status: 400 });
   }
 

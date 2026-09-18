@@ -1,20 +1,22 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { CampaignType } from '@/lib/types';
+import { temMidia, type CampaignType, type TipoComMidia } from '@/lib/types';
 import { uploadMedia } from '@/lib/upload-client';
 import { isoDeSP, partesSP } from '@/lib/hora-sp';
 import { Field, SegButton, Switch, inputCls } from '@/components/ui';
 import { WhatsAppPreview } from '@/components/WhatsAppPreview';
+import { EnqueteEditor } from '@/components/EnqueteEditor';
 
 const TIPOS: { key: CampaignType; label: string }[] = [
   { key: 'texto', label: 'Só texto' },
   { key: 'imagem', label: 'Imagem' },
   { key: 'video', label: 'Vídeo' },
   { key: 'pdf', label: 'PDF' },
+  { key: 'enquete', label: '📊 Enquete' },
 ];
 
-const ACEITA: Record<Exclude<CampaignType, 'texto'>, string> = {
+const ACEITA: Record<TipoComMidia, string> = {
   imagem: 'image/jpeg,image/png,image/webp',
   video: 'video/mp4',
   pdf: 'application/pdf',
@@ -30,6 +32,8 @@ export interface PassoRascunho {
   mencionar_todos: boolean;
   enviar_em: string;
   status?: string;
+  enquete_opcoes?: string[] | null;
+  enquete_multipla?: boolean;
 }
 
 /**
@@ -55,6 +59,8 @@ export function PassoEditor({
   const [mensagem, setMensagem] = useState(inicial.mensagem);
   const [midiaUrl, setMidiaUrl] = useState<string | null>(inicial.midia_url);
   const [mencionar, setMencionar] = useState(inicial.mencionar_todos);
+  const [opcoes, setOpcoes] = useState<string[]>(inicial.enquete_opcoes?.length ? inicial.enquete_opcoes : ['', '']);
+  const [multipla, setMultipla] = useState(Boolean(inicial.enquete_multipla));
   const [data, setData] = useState(partes.data);
   const [hora, setHora] = useState(partes.hora);
   const [enviandoArquivo, setEnviandoArquivo] = useState(false);
@@ -124,8 +130,10 @@ export function PassoEditor({
     void chamar(novo ? 'POST' : 'PATCH', {
       tipo,
       mensagem,
-      midia_url: tipo === 'texto' ? null : midiaUrl,
+      midia_url: temMidia(tipo) ? midiaUrl : null,
       mencionar_todos: paraGrupos && mencionar,
+      enquete_opcoes: tipo === 'enquete' ? opcoes : null,
+      enquete_multipla: tipo === 'enquete' && multipla,
       enviar_em: enviarEm,
     });
   }
@@ -186,7 +194,7 @@ export function PassoEditor({
                 </div>
               </Field>
 
-              {tipo !== 'texto' && (
+              {temMidia(tipo) && (
                 <Field label="Mídia" error={erros.midia_url}>
                   <input
                     ref={arquivoRef}
@@ -226,15 +234,29 @@ export function PassoEditor({
                 </Field>
               )}
 
-              <Field label="Mensagem" error={erros.mensagem}>
+              <Field
+                label={tipo === 'enquete' ? 'Pergunta' : 'Mensagem'}
+                hint={tipo === 'enquete' ? '· aparece em cima das opções' : undefined}
+                error={erros.mensagem}
+              >
                 <textarea
                   value={mensagem}
                   onChange={(e) => setMensagem(e.target.value)}
-                  rows={7}
-                  placeholder="Bom dia, pessoal! ☀️ …"
-                  className={`${inputCls} min-h-[160px] resize-y leading-relaxed`}
+                  rows={tipo === 'enquete' ? 2 : 7}
+                  placeholder={tipo === 'enquete' ? 'Qual o melhor horário para a live?' : 'Bom dia, pessoal! ☀️ …'}
+                  className={`${inputCls} ${tipo === 'enquete' ? 'min-h-[70px]' : 'min-h-[160px]'} resize-y leading-relaxed`}
                 />
               </Field>
+
+              {tipo === 'enquete' && (
+                <EnqueteEditor
+                  opcoes={opcoes}
+                  onOpcoes={setOpcoes}
+                  multipla={multipla}
+                  onMultipla={setMultipla}
+                  erro={erros.enquete_opcoes}
+                />
+              )}
 
               {paraGrupos && (
                 <Field>
@@ -257,6 +279,8 @@ export function PassoEditor({
                 mensagem={mensagem}
                 midiaUrl={midiaUrl}
                 mencionarTodos={paraGrupos && mencionar}
+                enqueteOpcoes={opcoes}
+                enqueteMultipla={multipla}
               />
             </div>
           </div>

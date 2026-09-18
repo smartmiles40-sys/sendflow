@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { Audience, Campaign, CampaignType, Connection, Group, Lista } from '@/lib/types';
+import { temMidia, type Audience, type Campaign, type CampaignType, type TipoComMidia, type Connection, type Group, type Lista } from '@/lib/types';
 import { WhatsAppPreview } from '@/components/WhatsAppPreview';
 import { MultiDatePicker, type DateEntry } from '@/components/MultiDatePicker';
 import {
@@ -16,6 +16,7 @@ import { Field, SegButton, Switch, inputCls } from '@/components/ui';
 import { validateCampaign, type CampaignDraft } from '@/lib/validation';
 import { estimateDuration, formatDuration } from '@/lib/message';
 import { uploadMedia } from '@/lib/upload-client';
+import { EnqueteEditor } from '@/components/EnqueteEditor';
 import { CATEGORIAS, isCategoria, type CategoriaKey } from '@/lib/categories';
 
 const tipos: { key: CampaignType; label: string }[] = [
@@ -23,9 +24,10 @@ const tipos: { key: CampaignType; label: string }[] = [
   { key: 'imagem', label: 'Imagem' },
   { key: 'video', label: 'Vídeo' },
   { key: 'pdf', label: 'PDF' },
+  { key: 'enquete', label: '📊 Enquete' },
 ];
 
-const acceptByTipo: Record<Exclude<CampaignType, 'texto'>, string> = {
+const acceptByTipo: Record<TipoComMidia, string> = {
   imagem: 'image/jpeg,image/png,image/webp',
   video: 'video/mp4',
   pdf: 'application/pdf',
@@ -103,6 +105,8 @@ function NovaCampanha() {
   const [midiaMeta, setMidiaMeta] = useState<{ name: string; size: number } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [mencionar, setMencionar] = useState(false);
+  const [enqueteOpcoes, setEnqueteOpcoes] = useState<string[]>(['', '']);
+  const [enqueteMultipla, setEnqueteMultipla] = useState(false);
   const [agendar, setAgendar] = useState(true);
   const [enviarEm, setEnviarEm] = useState('');
 
@@ -191,6 +195,8 @@ function NovaCampanha() {
         setMidiaUrl(c.midia_url ?? null);
         setMidiaMeta(null);
         setMencionar(Boolean(c.mencionar_todos));
+        if (c.enquete_opcoes?.length) setEnqueteOpcoes(c.enquete_opcoes);
+        setEnqueteMultipla(Boolean(c.enquete_multipla));
 
         // No stored "agendar" flag: treat a future enviar_em as a live schedule,
         // a past one as "enviar agora". Prefill the field either way.
@@ -258,12 +264,13 @@ function NovaCampanha() {
 
   function pickTipo(t: CampaignType) {
     setTipo(t);
-    if (t === 'texto') {
+    if (t === 'texto' || t === 'enquete') {
       setMidiaUrl(null);
       setMidiaMeta(null);
     }
     clearError('tipo');
     clearError('midia_url');
+    clearError('enquete_opcoes');
   }
 
   function toggleGroup(groupId: string) {
@@ -305,6 +312,8 @@ function NovaCampanha() {
       mensagem,
       midia_url: midiaUrl,
       mencionar_todos: mencionar,
+          enquete_opcoes: enqueteOpcoes,
+          enquete_multipla: enqueteMultipla,
       agendar,
       enviar_em: agendar && enviarEm ? new Date(enviarEm).toISOString() : null,
     };
@@ -344,6 +353,8 @@ function NovaCampanha() {
             mensagem: mensagem.trim(),
             midia_url: midiaUrl,
             mencionar_todos: mencionar,
+          enquete_opcoes: enqueteOpcoes,
+          enquete_multipla: enqueteMultipla,
             tipo,
             categoria,
             enviar_em,
@@ -421,6 +432,8 @@ function NovaCampanha() {
           mensagem,
           midia_url: midiaUrl,
           mencionar_todos: mencionar,
+          enquete_opcoes: enqueteOpcoes,
+          enquete_multipla: enqueteMultipla,
           agendar: true,
           enviar_em: firstISO,
         },
@@ -448,7 +461,7 @@ function NovaCampanha() {
     const missingMidia = sorted.find((e) => {
       const eTipo = e.tipo ?? tipo;
       const eMidia = e.tipo ? (e.midia_url ?? null) : midiaUrl;
-      return eTipo !== 'texto' && !eMidia;
+      return temMidia(eTipo) && !eMidia;
     });
     if (missingMidia) {
       setSubmitError(
@@ -475,6 +488,8 @@ function NovaCampanha() {
           mensagem: entry.mensagem?.trim() || mensagem,
           midia_url: eMidia,
           mencionar_todos: mencionar,
+          enquete_opcoes: enqueteOpcoes,
+          enquete_multipla: enqueteMultipla,
           agendar: true,
           enviar_em: new Date(`${entry.date}T${entry.time}`).toISOString(),
         };
@@ -570,7 +585,7 @@ function NovaCampanha() {
             </div>
           </Field>
 
-          {tipo !== 'texto' && (
+          {temMidia(tipo) && (
             <Field label="Mídia" error={errors.midia_url}>
               <input
                 ref={fileRef}
@@ -616,18 +631,35 @@ function NovaCampanha() {
             </Field>
           )}
 
-          <Field label="Mensagem" hint="· use {{data}}, {{tema}} se quiser" error={errors.mensagem}>
+          <Field
+            label={tipo === 'enquete' ? 'Pergunta' : 'Mensagem'}
+            hint={tipo === 'enquete' ? '· aparece em cima das opções' : '· use {{data}}, {{tema}} se quiser'}
+            error={errors.mensagem}
+          >
             <textarea
               value={mensagem}
               onChange={(e) => {
                 setMensagem(e.target.value);
                 clearError('mensagem');
               }}
-              rows={4}
-              placeholder="Bom dia, pessoal! ☀️ …"
-              className={`${inputCls} min-h-[120px] resize-y leading-relaxed`}
+              rows={tipo === 'enquete' ? 2 : 4}
+              placeholder={tipo === 'enquete' ? 'Qual o melhor horário para a live?' : 'Bom dia, pessoal! ☀️ …'}
+              className={`${inputCls} ${tipo === 'enquete' ? 'min-h-[70px]' : 'min-h-[120px]'} resize-y leading-relaxed`}
             />
           </Field>
+
+          {tipo === 'enquete' && (
+            <EnqueteEditor
+              opcoes={enqueteOpcoes}
+              onOpcoes={(o) => {
+                setEnqueteOpcoes(o);
+                clearError('enquete_opcoes');
+              }}
+              multipla={enqueteMultipla}
+              onMultipla={setEnqueteMultipla}
+              erro={errors.enquete_opcoes}
+            />
+          )}
 
           <Field>
             <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-surface2 px-3.5 py-3">
@@ -886,6 +918,8 @@ function NovaCampanha() {
             mensagem={mensagem}
             midiaUrl={midiaUrl}
             mencionarTodos={mencionar}
+            enqueteOpcoes={enqueteOpcoes}
+            enqueteMultipla={enqueteMultipla}
           />
         </div>
       </div>

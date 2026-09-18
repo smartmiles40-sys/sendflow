@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/http';
 import { nomeDoPasso, validarPasso, type PassoEntrada } from '@/lib/cadencia';
 import { dispararTick } from '@/lib/dispatch/gatilho';
+import { limparOpcoes } from '@/lib/enquete';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +30,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       categoria: cadencia.categoria,
       tipo: passo.tipo,
       mensagem: String(passo.mensagem ?? '').trim(),
-      midia_url: passo.tipo === 'texto' ? null : (passo.midia_url ?? null),
+      midia_url: passo.tipo === 'texto' || passo.tipo === 'enquete' ? null : (passo.midia_url ?? null),
       mencionar_todos: Boolean(passo.mencionar_todos),
+      enquete_opcoes: passo.tipo === 'enquete' ? limparOpcoes(passo.enquete_opcoes) : null,
+      enquete_multipla: passo.tipo === 'enquete' && Boolean(passo.enquete_multipla),
       alvo: cadencia.alvo,
       audience_id: cadencia.audience_id,
       group_ids: cadencia.group_ids,

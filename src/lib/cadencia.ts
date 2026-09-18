@@ -8,6 +8,7 @@ import { isCategoria, type CategoriaKey } from './categories';
 import type { CampaignType } from './types';
 import type { ValidationError } from './validation';
 import { formatWhen } from './format';
+import { limparOpcoes, validarEnquete } from './enquete';
 
 export interface DestinoCadencia {
   alvo: 'grupos' | 'contatos';
@@ -31,9 +32,11 @@ export interface PassoEntrada {
   midia_url: string | null;
   mencionar_todos: boolean;
   enviar_em: string | null;
+  enquete_opcoes?: string[] | null;
+  enquete_multipla?: boolean;
 }
 
-const TIPOS: CampaignType[] = ['texto', 'imagem', 'video', 'pdf'];
+const TIPOS: CampaignType[] = ['texto', 'imagem', 'video', 'pdf', 'enquete'];
 
 function listaDeTexto(v: unknown): string[] | null {
   if (!Array.isArray(v)) return null;
@@ -92,10 +95,12 @@ export function lerCategoria(v: unknown): CategoriaKey {
 export function validarPasso(p: Partial<PassoEntrada>, agora: Date): ValidationError[] {
   const errors: ValidationError[] = [];
   if (!p.tipo || !TIPOS.includes(p.tipo)) errors.push({ field: 'tipo', message: 'Tipo inválido.' });
-  if (!String(p.mensagem ?? '').trim()) {
+  if (p.tipo === 'enquete') {
+    errors.push(...validarEnquete(String(p.mensagem ?? ''), limparOpcoes(p.enquete_opcoes)));
+  } else if (!String(p.mensagem ?? '').trim()) {
     errors.push({ field: 'mensagem', message: 'Escreva a mensagem.' });
   }
-  if (p.tipo && p.tipo !== 'texto' && !p.midia_url) {
+  if (p.tipo && p.tipo !== 'texto' && p.tipo !== 'enquete' && !p.midia_url) {
     errors.push({ field: 'midia_url', message: 'Envie a mídia para este tipo de mensagem.' });
   }
   if (!p.enviar_em) {

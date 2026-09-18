@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import type { CampaignType } from '@/lib/types';
+import { temMidia, type CampaignType } from '@/lib/types';
 
 // Faithful recreation of the approved mockup's WhatsApp look: a dark chat pane
 // with a group header, a single outgoing bubble (#005c4b) pinned right, and the
@@ -10,7 +10,7 @@ import type { CampaignType } from '@/lib/types';
 const WALLPAPER =
   "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"40\" height=\"40\"><circle cx=\"4\" cy=\"4\" r=\"1\" fill=\"%23131f27\"/></svg>')";
 
-const mediaPlaceholder: Record<Exclude<CampaignType, 'texto' | 'imagem'>, { icon: string; label: string }> = {
+const mediaPlaceholder: Record<'video' | 'pdf', { icon: string; label: string }> = {
   video: { icon: '🎬', label: 'Vídeo' },
   pdf: { icon: '📄', label: 'Documento PDF' },
 };
@@ -20,13 +20,17 @@ export function WhatsAppPreview({
   mensagem,
   midiaUrl,
   mencionarTodos,
+  enqueteOpcoes = [],
+  enqueteMultipla = false,
 }: {
   tipo: CampaignType;
   mensagem: string;
   midiaUrl: string | null;
   mencionarTodos: boolean;
+  enqueteOpcoes?: string[];
+  enqueteMultipla?: boolean;
 }) {
-  const hasMedia = tipo !== 'texto';
+  const hasMedia = temMidia(tipo);
 
   return (
     <div>
@@ -71,11 +75,17 @@ export function WhatsAppPreview({
               </div>
             )}
 
+            {tipo === 'enquete' ? (
+              <Enquete pergunta={mensagem} opcoes={enqueteOpcoes} multipla={enqueteMultipla} mencionarTodos={mencionarTodos} />
+            ) : (
+            <>
             {mencionarTodos && <span className="text-[#53bdeb]">@todos </span>}
             {mensagem ? (
               <span className="whitespace-pre-wrap break-words">{mensagem}</span>
             ) : (
               <span className="text-[#8fb9ae]">sua mensagem…</span>
+            )}
+            </>
             )}
 
             <div className="mt-1 text-right text-[10px] text-[#8fb9ae]">agora ✓✓</div>
@@ -86,6 +96,42 @@ export function WhatsAppPreview({
       <div className="mt-2.5 text-center text-[11.5px] text-muted">
         Atualiza conforme você digita · igual chega no grupo
       </div>
+    </div>
+  );
+}
+
+/** A enquete como o WhatsApp desenha: pergunta, "Selecione uma ou mais opções" e as bolinhas. */
+function Enquete({
+  pergunta,
+  opcoes,
+  multipla,
+  mencionarTodos,
+}: {
+  pergunta: string;
+  opcoes: string[];
+  multipla: boolean;
+  mencionarTodos: boolean;
+}) {
+  const visiveis = opcoes.filter((o) => o.trim());
+  return (
+    <div className="min-w-[210px]">
+      <div className="break-words font-semibold">
+        {pergunta.trim() || <span className="font-normal text-[#8fb9ae]">sua pergunta…</span>}
+      </div>
+      <div className="mb-2 mt-0.5 text-[11.5px] text-[#8fb9ae]">
+        {multipla ? 'Selecione uma ou mais opções' : 'Selecione uma opção'}
+      </div>
+      {(visiveis.length ? visiveis : ['Opção 1', 'Opção 2']).map((o, i) => (
+        <div key={i} className={`mb-2 flex items-center gap-2.5 ${visiveis.length ? '' : 'opacity-50'}`}>
+          <span className={`h-[18px] w-[18px] shrink-0 border-2 border-[#8fb9ae] ${multipla ? 'rounded-[4px]' : 'rounded-full'}`} />
+          <span className="min-w-0 flex-1">
+            <span className="block break-words">{o}</span>
+            <span className="mt-1 block h-[5px] rounded-full bg-[#0b3d33]" />
+          </span>
+        </div>
+      ))}
+      {mencionarTodos && <div className="text-[12px] text-[#53bdeb]">@todos marcados</div>}
+      <div className="mt-1 border-t border-white/10 pt-1.5 text-center text-[13px] font-semibold text-[#53bdeb]">Ver votos</div>
     </div>
   );
 }

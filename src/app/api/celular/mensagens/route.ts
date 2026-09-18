@@ -65,7 +65,7 @@ export async function GET(req: Request) {
     const [{ data: camps }, { data: grupo }, { data: publicos }] = await Promise.all([
       supabase
         .from('campaigns')
-        .select('id,nome,tipo,mensagem,midia_url,mencionar_todos,enviar_em,status,cadencia_id,group_ids,audience_id,alvo')
+        .select('id,nome,tipo,mensagem,midia_url,mencionar_todos,enquete_opcoes,enviar_em,status,cadencia_id,group_ids,audience_id,alvo')
         .or('status.in.(agendada,enviando),and(status.eq.rascunho,cadencia_id.not.is.null)')
         .eq('alvo', 'grupos')
         .order('enviar_em', { ascending: true })
@@ -91,6 +91,7 @@ export async function GET(req: Request) {
         mensagem: c.mensagem,
         midia_url: c.midia_url,
         mencionar_todos: c.mencionar_todos,
+        enquete_opcoes: c.enquete_opcoes,
         enviar_em: c.enviar_em,
         status: c.status,
         cadencia_id: c.cadencia_id,

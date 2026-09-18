@@ -1,6 +1,13 @@
 import type { CategoriaKey } from './categories';
 
-export type CampaignType = 'texto' | 'imagem' | 'video' | 'pdf';
+export type CampaignType = 'texto' | 'imagem' | 'video' | 'pdf' | 'enquete';
+/** Os tipos que levam arquivo anexado (a enquete e o texto não levam). */
+export type TipoComMidia = 'imagem' | 'video' | 'pdf';
+
+/** Tem arquivo anexado? Serve de guarda de tipo para os mapas por TipoComMidia. */
+export function temMidia(tipo: CampaignType): tipo is TipoComMidia {
+  return tipo === 'imagem' || tipo === 'video' || tipo === 'pdf';
+}
 export type CampaignStatus =
   | 'rascunho' | 'agendada' | 'enviando' | 'enviada' | 'cancelada' | 'erro';
 
@@ -62,6 +69,10 @@ export interface Campaign {
   mensagem: string;
   midia_url: string | null;
   mencionar_todos: boolean;
+  /** Enquete: as opções, na ordem. A pergunta é a `mensagem`. */
+  enquete_opcoes?: string[] | null;
+  /** Enquete: a pessoa pode marcar mais de uma opção. */
+  enquete_multipla?: boolean;
   audience_id: string | null;
   group_ids: string[] | null;
   /** Para quem a campanha vai: os grupos cadastrados ou os contatos de uma lista. */

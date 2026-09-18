@@ -1,5 +1,6 @@
 import type { CampaignType } from './types';
 import type { CategoriaKey } from './categories';
+import { limparOpcoes, validarEnquete } from './enquete';
 
 export interface CampaignDraft {
   nome: string;
@@ -10,6 +11,9 @@ export interface CampaignDraft {
   mencionar_todos: boolean;
   agendar: boolean;
   enviar_em: string | null;
+  /** Só para enquete: a pergunta é a `mensagem`. */
+  enquete_opcoes?: string[] | null;
+  enquete_multipla?: boolean;
 }
 
 export interface ValidationError {
@@ -19,11 +23,15 @@ export interface ValidationError {
 
 export function validateCampaign(d: CampaignDraft, now: Date): ValidationError[] {
   const errors: ValidationError[] = [];
-  const TIPOS = ['texto', 'imagem', 'video', 'pdf'];
+  const TIPOS = ['texto', 'imagem', 'video', 'pdf', 'enquete'];
   if (!TIPOS.includes(d.tipo)) errors.push({ field: 'tipo', message: 'Tipo inválido.' });
   if (!d.nome.trim()) errors.push({ field: 'nome', message: 'Dê um nome à campanha.' });
-  if (!d.mensagem.trim()) errors.push({ field: 'mensagem', message: 'Escreva a mensagem.' });
-  if (d.tipo !== 'texto' && !d.midia_url) {
+  if (d.tipo === 'enquete') {
+    errors.push(...validarEnquete(d.mensagem, limparOpcoes(d.enquete_opcoes)));
+  } else if (!d.mensagem.trim()) {
+    errors.push({ field: 'mensagem', message: 'Escreva a mensagem.' });
+  }
+  if (d.tipo !== 'texto' && d.tipo !== 'enquete' && !d.midia_url) {
     errors.push({ field: 'midia_url', message: 'Envie a mídia para este tipo de campanha.' });
   }
   if (d.agendar) {

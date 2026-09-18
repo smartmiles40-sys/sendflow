@@ -1,6 +1,7 @@
 import type { CampaignDraft } from './validation';
 import type { CampaignStatus, CampaignType } from './types';
 import { isCategoria, type CategoriaKey } from './categories';
+import { limparOpcoes } from './enquete';
 
 export interface CampaignRow {
   nome: string;
@@ -9,6 +10,8 @@ export interface CampaignRow {
   mensagem: string;
   midia_url: string | null;
   mencionar_todos: boolean;
+  enquete_opcoes?: string[] | null;
+  enquete_multipla?: boolean;
   audience_id: string | null;
   group_ids: string[] | null;
   alvo: 'grupos' | 'contatos';
@@ -46,8 +49,10 @@ export function buildCampaignRow(
     tipo: draft.tipo,
     categoria: isCategoria(draft.categoria) ? draft.categoria : 'avulsas',
     mensagem: String(draft.mensagem ?? '').trim(),
-    midia_url: draft.midia_url ?? null,
+    midia_url: draft.tipo === 'enquete' ? null : (draft.midia_url ?? null),
     mencionar_todos: Boolean(draft.mencionar_todos),
+    enquete_opcoes: draft.tipo === 'enquete' ? limparOpcoes(draft.enquete_opcoes) : null,
+    enquete_multipla: draft.tipo === 'enquete' && Boolean(draft.enquete_multipla),
     // Grupo e contato são alvos excludentes: guardar os dois preenchidos deixaria a
     // campanha ambígua para quem lesse o histórico, e o fan-out só olha um deles.
     audience_id: paraContatos ? null : (alvo.audienceId ?? null),

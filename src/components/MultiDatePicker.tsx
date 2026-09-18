@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { holidaysBR } from '@/lib/holidays';
-import type { CampaignType } from '@/lib/types';
+import { temMidia, type CampaignType, type TipoComMidia } from '@/lib/types';
 
 export interface DateEntry {
   /** ISO calendar date, YYYY-MM-DD. */
@@ -24,7 +24,7 @@ const midiaTipos: { key: CampaignType; label: string }[] = [
   { key: 'pdf', label: 'PDF' },
 ];
 
-const acceptByTipo: Record<Exclude<CampaignType, 'texto'>, string> = {
+const acceptByTipo: Record<TipoComMidia, string> = {
   imagem: 'image/jpeg,image/png,image/webp',
   video: 'video/mp4',
   pdf: 'application/pdf',
@@ -370,7 +370,7 @@ export function MultiDatePicker({
                           ))}
                         </div>
 
-                        {entry.tipo && entry.tipo !== 'texto' && (
+                        {entry.tipo && temMidia(entry.tipo) && (
                           <div className="mt-2">
                             <input
                               type="file"

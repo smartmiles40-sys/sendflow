@@ -47,7 +47,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const { data: passos } = await supabase
     .from('campaigns')
-    .select('tipo,mensagem,midia_url,mencionar_todos,enviar_em')
+    .select('tipo,mensagem,midia_url,mencionar_todos,enquete_opcoes,enquete_multipla,enviar_em')
     .eq('cadencia_id', id)
     .order('enviar_em', { ascending: true });
 
@@ -63,6 +63,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         mensagem: p.mensagem,
         midia_url: p.midia_url,
         mencionar_todos: p.mencionar_todos,
+        enquete_opcoes: p.enquete_opcoes,
+        enquete_multipla: p.enquete_multipla,
         alvo: nova.alvo,
         audience_id: nova.audience_id,
         group_ids: nova.group_ids,

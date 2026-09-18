@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { Audience, CampaignType, Group, Recorrencia } from '@/lib/types';
+import { temMidia, type Audience, type CampaignType, type TipoComMidia, type Group, type Recorrencia } from '@/lib/types';
 import { WhatsAppPreview } from '@/components/WhatsAppPreview';
 import { AudiencePicker, resolveAudience, type AudienceMode } from '@/components/AudiencePicker';
 import { Field, SegButton, Switch, inputCls } from '@/components/ui';
@@ -18,7 +18,7 @@ const tipos: { key: CampaignType; label: string }[] = [
   { key: 'pdf', label: 'PDF' },
 ];
 
-const acceptByTipo: Record<Exclude<CampaignType, 'texto'>, string> = {
+const acceptByTipo: Record<TipoComMidia, string> = {
   imagem: 'image/jpeg,image/png,image/webp',
   video: 'video/mp4',
   pdf: 'application/pdf',
@@ -272,7 +272,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
             </div>
           </Field>
 
-          {tipo !== 'texto' && (
+          {temMidia(tipo) && (
             <Field label="Mídia" error={errors.midia_url}>
               <input
                 ref={fileRef}

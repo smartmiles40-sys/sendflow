@@ -41,6 +41,7 @@ interface NaFila {
   mensagem: string;
   midia_url: string | null;
   mencionar_todos: boolean;
+  enquete_opcoes?: string[] | null;
   enviar_em: string | null;
   status: string;
   cadencia_id: string | null;
@@ -688,7 +689,7 @@ function ConversaAberta({
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={f.midia_url} alt="" className="mb-1 max-h-60 w-full rounded-md object-cover" />
                     )}
-                    {f.tipo !== 'texto' && f.tipo !== 'imagem' && (
+                    {(f.tipo === 'video' || f.tipo === 'pdf') && (
                       <div className="mb-1 rounded-md px-2 py-3 text-center text-[12.5px]" style={{ background: 'rgba(0,0,0,.25)' }}>
                         {f.tipo === 'video' ? '🎬 Vídeo' : '📄 PDF'} anexado
                       </div>
@@ -721,7 +722,14 @@ function ConversaAberta({
                     ) : (
                       <div className="whitespace-pre-wrap break-words">
                         {f.mencionar_todos && <span style={{ color: WA.azul }}>@todos </span>}
-                        {formatar(f.mensagem)}
+                        {f.tipo === 'enquete' ? <b>📊 {f.mensagem}</b> : formatar(f.mensagem)}
+                        {f.tipo === 'enquete' &&
+                          (f.enquete_opcoes ?? []).map((o) => (
+                            <span key={o} className="mt-1 flex items-center gap-2">
+                              <span className="h-3.5 w-3.5 shrink-0 rounded-full border-2" style={{ borderColor: '#8fb9ae' }} />
+                              {o}
+                            </span>
+                          ))}
                       </div>
                     )}
                     {!emEdicao && f.status !== 'enviando' && (

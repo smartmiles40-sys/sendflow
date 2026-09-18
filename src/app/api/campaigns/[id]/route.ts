@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/http';
 import { isCategoria } from '@/lib/categories';
 import { dispararTick } from '@/lib/dispatch/gatilho';
+import { limparOpcoes, validarEnquete } from '@/lib/enquete';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,8 @@ const CAMPOS_EDITAVEIS = [
   'alvo',
   'list_ids',
   'connection_id',
+  'enquete_opcoes',
+  'enquete_multipla',
 ];
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -71,7 +74,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   // Validação dos campos com restrição no banco, para um valor ruim virar 400 e não 500.
-  if ('tipo' in patch && !['texto', 'imagem', 'video', 'pdf'].includes(patch.tipo as string)) {
+  if ('tipo' in patch && !['texto', 'imagem', 'video', 'pdf', 'enquete'].includes(patch.tipo as string)) {
     return NextResponse.json({ errors: [{ field: 'tipo', message: 'Tipo inválido.' }] }, { status: 400 });
   }
   if ('categoria' in patch && !isCategoria(patch.categoria)) {
@@ -92,6 +95,22 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const clean: Record<string, unknown> = {};
   for (const k of CAMPOS_EDITAVEIS) if (k in patch) clean[k] = patch[k];
+  if ('enquete_opcoes' in clean) clean.enquete_opcoes = limparOpcoes(clean.enquete_opcoes);
+  if ('enquete_multipla' in clean) clean.enquete_multipla = Boolean(clean.enquete_multipla);
+  // Enquete: confere pergunta + opções como vão ficar DEPOIS da edição (o banco também
+  // barra, mas assim o erro chega em português e no campo certo).
+  if (clean.tipo === 'enquete' || ('enquete_opcoes' in clean && patch.tipo === undefined)) {
+    const { data: atual } = await supabase.from('campaigns').select('tipo,mensagem,enquete_opcoes').eq('id', id).maybeSingle();
+    const tipoFinal = (clean.tipo as string | undefined) ?? atual?.tipo;
+    if (tipoFinal === 'enquete') {
+      const errors = validarEnquete(
+        String(clean.mensagem ?? atual?.mensagem ?? ''),
+        (clean.enquete_opcoes as string[] | undefined) ?? atual?.enquete_opcoes ?? [],
+      );
+      if (errors.length) return NextResponse.json({ errors }, { status: 400 });
+      clean.midia_url = null;
+    }
+  }
   // Reenviar devolve a campanha para a fila. Os outros status (enviando/enviada/erro)
   // são do motor — o cliente não escreve neles.
   if (patch.status === 'agendada') clean.status = 'agendada';

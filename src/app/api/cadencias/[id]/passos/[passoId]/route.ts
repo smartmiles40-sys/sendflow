@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/http';
 import { STATUS_EDITAVEIS, nomeDoPasso, validarPasso, type PassoEntrada } from '@/lib/cadencia';
 import { dispararTick } from '@/lib/dispatch/gatilho';
+import { limparOpcoes } from '@/lib/enquete';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,8 @@ export async function PATCH(req: Request, { params }: Params) {
       midia_url: 'midia_url' in body ? body.midia_url : atual.midia_url,
       mencionar_todos: body.mencionar_todos ?? atual.mencionar_todos,
       enviar_em: body.enviar_em ?? atual.enviar_em,
+      enquete_opcoes: 'enquete_opcoes' in body ? body.enquete_opcoes : atual.enquete_opcoes,
+      enquete_multipla: body.enquete_multipla ?? atual.enquete_multipla,
     };
     const errors = validarPasso(final, new Date());
     if (errors.length) return NextResponse.json({ errors }, { status: 400 });
@@ -49,8 +52,10 @@ export async function PATCH(req: Request, { params }: Params) {
     upd = {
       tipo: final.tipo,
       mensagem: String(final.mensagem).trim(),
-      midia_url: final.tipo === 'texto' ? null : final.midia_url,
+      midia_url: final.tipo === 'texto' || final.tipo === 'enquete' ? null : final.midia_url,
       mencionar_todos: Boolean(final.mencionar_todos),
+      enquete_opcoes: final.tipo === 'enquete' ? limparOpcoes(final.enquete_opcoes) : null,
+      enquete_multipla: final.tipo === 'enquete' && Boolean(final.enquete_multipla),
       enviar_em: enviarEm,
       nome: nomeDoPasso(cadencia.nome, enviarEm),
       status: 'agendada',

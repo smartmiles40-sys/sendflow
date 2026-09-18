@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import type { CampaignType, SequenceStep } from '@/lib/types';
+import { temMidia, type CampaignType, type TipoComMidia, type SequenceStep } from '@/lib/types';
 import { Switch, inputCls } from './ui';
 import { uploadMedia } from '@/lib/upload-client';
 
@@ -29,7 +29,7 @@ const tipoOptions: { value: CampaignType; label: string }[] = [
   { value: 'pdf', label: 'PDF' },
 ];
 
-const acceptByTipo: Record<Exclude<CampaignType, 'texto'>, string> = {
+const acceptByTipo: Record<TipoComMidia, string> = {
   imagem: 'image/jpeg,image/png,image/webp',
   video: 'video/mp4',
   pdf: 'application/pdf',
@@ -257,7 +257,7 @@ export function SequenceStepRow({
           ))}
         </select>
 
-        {step.tipo !== 'texto' && (
+        {temMidia(step.tipo) && (
           <div className="mt-2.5">
             <input
               ref={fileRef}
