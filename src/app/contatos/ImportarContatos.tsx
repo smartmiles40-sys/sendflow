@@ -275,7 +275,7 @@ export function ImportarContatos({
                     type="button"
                     onClick={() => void importar()}
                     disabled={ocupado || previa.validos === 0}
-                    className="flex-1 rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:opacity-50"
+                    className="flex-1 rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
                   >
                     {ocupado
                       ? 'Importando…'

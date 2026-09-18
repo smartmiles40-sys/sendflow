@@ -102,7 +102,7 @@ export function LoginClient({ configurado }: { configurado: boolean }) {
           <button
             type="submit"
             disabled={entrando || !usuario || !senha}
-            className="w-full rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            className="w-full rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
           >
             {entrando ? 'Entrando…' : 'Entrar'}
           </button>

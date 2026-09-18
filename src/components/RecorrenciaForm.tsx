@@ -212,7 +212,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
       </div>
 
       <div className="grid grid-cols-1 items-start gap-[26px] lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="rounded-xl2 border border-border bg-surface p-[22px]">
+        <div className="rounded-xl2 border border-border bg-surface p-4 sm:p-[22px]">
           <Field label="Nome" error={errors.nome}>
             <input
               value={nome}
@@ -226,7 +226,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
           </Field>
 
           <Field label="Categoria" hint="· organiza o painel por produto">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {CATEGORIAS.map((cat) => (
                 <SegButton
                   key={cat.key}
@@ -240,7 +240,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
           </Field>
 
           <Field label="Dia da semana" error={errors.dia_semana}>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
               {DIA_CURTO.map((label, i) => (
                 <SegButton key={label} on={diaSemana === i} onClick={() => setDiaSemana(i)}>
                   <span className="sr-only">{DIAS_SEMANA_LABEL[i]}</span>
@@ -263,7 +263,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
           </Field>
 
           <Field label="Tipo de conteúdo">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {tipos.map((t) => (
                 <SegButton key={t.key} on={tipo === t.key} onClick={() => pickTipo(t.key)}>
                   {t.label}
@@ -374,7 +374,7 @@ export function RecorrenciaForm({ initial }: { initial?: Recorrencia | null }) {
               type="button"
               onClick={() => void submit()}
               disabled={busy || uploading}
-              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
             >
               {busy ? 'Salvando…' : editing ? '💾 Salvar alterações' : '🔄 Criar recorrência'}
             </button>

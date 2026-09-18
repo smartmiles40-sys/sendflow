@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KpiDiario } from '@/lib/types';
 import { formatarNumero } from '@/lib/kpis';
 
@@ -40,13 +40,26 @@ const L = 44; // margem esquerda: espaço dos rótulos do eixo Y
 const R = 62; // margem direita: espaço do rótulo na ponta da linha
 const T = 14;
 const B = 26;
-const LARGURA = 760;
+const LARGURA_PADRAO = 760;
 const ALTURA = 240;
 
 export function SerieDiaria({ serie, metrica }: { serie: KpiDiario[]; metrica: Metrica }) {
   const [foco, setFoco] = useState<number | null>(null);
 
   const dados = useMemo(() => montar(serie, metrica), [serie, metrica]);
+  const temDados = dados.dias.length > 0;
+
+  // Desenha na largura REAL do cartão. Com o viewBox fixo em 760, o SVG inteiro
+  // encolhia para caber no celular e o texto de 11px virava 4px.
+  const caixa = useRef<HTMLDivElement>(null);
+  const [LARGURA, setLargura] = useState(LARGURA_PADRAO);
+  useEffect(() => {
+    const el = caixa.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setLargura(Math.max(280, Math.round(el.clientWidth))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [temDados]);
 
   if (!dados.dias.length) {
     return (
@@ -64,7 +77,7 @@ export function SerieDiaria({ serie, metrica }: { serie: KpiDiario[]; metrica: M
   const ticks = ticksDoEixo(maximo);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={caixa}>
       <div className="mb-3 flex flex-wrap items-center gap-4">
         {SERIES.map((s) => (
           <span key={s.canal} className="flex items-center gap-2 text-xs font-medium text-muted">

@@ -37,7 +37,7 @@ export function Tile({
         destaque ? 'border-blue2/40 bg-gradient-to-b from-blue/15 to-blue/5' : 'border-border bg-surface'
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
         <div className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{label}</div>
         {estado && (
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${estado.cls}`}>

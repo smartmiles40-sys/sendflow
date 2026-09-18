@@ -210,7 +210,7 @@ export function SequenceEditorClient({ sequence }: { sequence: Sequence }) {
           type="button"
           onClick={() => void save()}
           disabled={saving}
-          className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
         >
           {saving ? 'Salvando…' : '💾 Salvar roteiro'}
         </button>

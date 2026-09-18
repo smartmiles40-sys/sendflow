@@ -131,7 +131,7 @@ export function ConfiguracoesClient({
             type="button"
             onClick={() => void salvar()}
             disabled={salvando || !ambiente.banco}
-            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:opacity-50"
+            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
           >
             {salvando ? 'Salvando…' : 'Salvar'}
           </button>

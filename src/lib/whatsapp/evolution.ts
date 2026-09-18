@@ -427,3 +427,84 @@ export async function verificarNumeros(
   }
   return mapa;
 }
+
+// ── Conversas (a tela "Celular") ─────────────────────────────────────────────────
+// Leitura do que está de fato no aparelho, e não do que o SendFlow acha que mandou.
+// É a prova de envio: se a mensagem aparece aqui, ela está no WhatsApp.
+
+/** Todas as conversas do número, como vêm da Evolution (a tradução mora em conversas.ts). */
+export async function listarConversasBrutas(instanceName: string): Promise<unknown[]> {
+  const corpo = await chamar<unknown>(`/chat/findChats/${encodeURIComponent(instanceName)}`, {
+    method: 'POST',
+    body: {},
+    timeoutMs: 30_000,
+  });
+  return Array.isArray(corpo) ? corpo : [];
+}
+
+/** Uma página do histórico de uma conversa, da mais nova para a mais antiga. */
+export async function listarMensagensBrutas(
+  instanceName: string,
+  jid: string,
+  pagina = 1,
+  porPagina = 40,
+): Promise<{ registros: unknown[]; paginas: number }> {
+  const corpo = await chamar<Record<string, unknown>>(
+    `/chat/findMessages/${encodeURIComponent(instanceName)}`,
+    {
+      method: 'POST',
+      body: { where: { key: { remoteJid: jid } }, page: pagina, offset: porPagina },
+      timeoutMs: 30_000,
+    },
+  );
+  const msgs = (corpo?.messages ?? {}) as Record<string, unknown>;
+  return {
+    registros: Array.isArray(msgs.records) ? msgs.records : [],
+    paginas: Number(msgs.pages) || 1,
+  };
+}
+
+/** Baixa a mídia de uma mensagem (a URL do WhatsApp é cifrada; só a Evolution abre). */
+export async function baixarMidia(
+  instanceName: string,
+  messageId: string,
+): Promise<{ base64: string; mimetype: string } | null> {
+  const corpo = await chamar<Record<string, unknown>>(
+    `/chat/getBase64FromMediaMessage/${encodeURIComponent(instanceName)}`,
+    {
+      method: 'POST',
+      body: { message: { key: { id: messageId } }, convertToMp4: false },
+      timeoutMs: 45_000,
+    },
+  );
+  const base64 = typeof corpo?.base64 === 'string' ? corpo.base64 : null;
+  if (!base64) return null;
+  return { base64, mimetype: typeof corpo.mimetype === 'string' ? corpo.mimetype : 'application/octet-stream' };
+}
+
+/** Edita o texto de uma mensagem já enviada. O WhatsApp só aceita até 15 min depois. */
+export async function editarMensagem(
+  instanceName: string,
+  jid: string,
+  messageId: string,
+  texto: string,
+): Promise<void> {
+  await chamar(`/chat/updateMessage/${encodeURIComponent(instanceName)}`, {
+    method: 'POST',
+    body: { number: jid, key: { id: messageId, remoteJid: jid, fromMe: true }, text: texto },
+    timeoutMs: 30_000,
+  });
+}
+
+/** "Apagar para todos". O WhatsApp aceita por cerca de 2 dias depois do envio. */
+export async function apagarParaTodos(
+  instanceName: string,
+  jid: string,
+  messageId: string,
+): Promise<void> {
+  await chamar(`/chat/deleteMessageForEveryone/${encodeURIComponent(instanceName)}`, {
+    method: 'DELETE',
+    body: { id: messageId, remoteJid: jid, fromMe: true },
+    timeoutMs: 30_000,
+  });
+}

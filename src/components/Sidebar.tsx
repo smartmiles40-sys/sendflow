@@ -21,7 +21,9 @@ const grupos: { titulo: string | null; itens: { href: string; label: string; ico
   {
     titulo: 'WhatsApp',
     itens: [
+      { href: '/celular', label: 'Celular', icon: '📱' },
       { href: '/campanhas', label: 'Campanhas', icon: '📣' },
+      { href: '/cadencias', label: 'Cadências', icon: '🧭' },
       { href: '/sequencias', label: 'Sequências', icon: '🔁' },
       { href: '/recorrencias', label: 'Recorrentes', icon: '🔄' },
       { href: '/grupos', label: 'Grupos', icon: '👥' },

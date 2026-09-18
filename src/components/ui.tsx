@@ -46,7 +46,7 @@ export function SegButton({
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`min-w-[80px] flex-1 rounded-xl border px-2 py-[11px] text-center text-[13px] font-semibold transition-colors ${
+      className={`min-w-0 flex-1 sm:min-w-[80px] rounded-xl border px-2 py-[11px] text-center text-[13px] font-semibold transition-colors ${
         on
           ? 'border-blue bg-blue/15 text-ink'
           : 'border-border bg-surface2 text-muted hover:text-ink'

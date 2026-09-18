@@ -526,7 +526,7 @@ function NovaCampanha() {
 
       <div className="grid grid-cols-1 items-start gap-[26px] lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* FORM */}
-        <div className="rounded-xl2 border border-border bg-surface p-[22px]">
+        <div className="rounded-xl2 border border-border bg-surface p-4 sm:p-[22px]">
           {loading && (
             <div className="mb-5 rounded-xl border border-border bg-surface2 px-3.5 py-3 text-[13px] text-muted">
               Carregando campanha…
@@ -547,7 +547,7 @@ function NovaCampanha() {
           </Field>
 
           <Field label="Categoria" hint="· organiza o painel por produto">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {CATEGORIAS.map((cat) => (
                 <SegButton
                   key={cat.key}
@@ -561,7 +561,7 @@ function NovaCampanha() {
           </Field>
 
           <Field label="Tipo de conteúdo">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {tipos.map((t) => (
                 <SegButton key={t.key} on={tipo === t.key} onClick={() => pickTipo(t.key)}>
                   {t.label}
@@ -844,7 +844,7 @@ function NovaCampanha() {
                 loading ||
                 (multiDia && !editing && multiEntries.length === 0)
               }
-              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
             >
               {busy
                 ? multiDia && !editing

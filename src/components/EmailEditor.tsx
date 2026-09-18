@@ -386,7 +386,7 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
                 }
               }}
               disabled={salvando || !podeAgendar || !dados.provedor}
-              className="rounded-xl bg-blue px-6 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+              className="rounded-xl bg-blue px-6 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
             >
               {salvando ? 'Salvando…' : agendar ? 'Agendar envio' : 'Enviar agora'}
             </button>

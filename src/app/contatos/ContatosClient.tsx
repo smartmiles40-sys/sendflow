@@ -314,7 +314,7 @@ function Listas({ listas, onMudou }: { listas: Lista[]; onMudou: (l: Lista[]) =>
           type="button"
           onClick={() => void criar()}
           disabled={salvando || !nome.trim()}
-          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:opacity-50"
+          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
         >
           ＋ Criar lista
         </button>

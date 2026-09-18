@@ -313,7 +313,7 @@ export function SequenceDispatchClient({ sequence }: { sequence: Sequence }) {
 
       <div className="grid grid-cols-1 items-start gap-[26px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* FORM */}
-        <div className="rounded-xl2 border border-border bg-surface p-[22px]">
+        <div className="rounded-xl2 border border-border bg-surface p-4 sm:p-[22px]">
           <div className="mb-5">
             <div className="mb-[9px] flex items-center justify-between">
               <label className="text-[13px] font-semibold">Aulas</label>
@@ -395,7 +395,7 @@ export function SequenceDispatchClient({ sequence }: { sequence: Sequence }) {
           </div>
 
           <Field label="Categoria" hint="· onde as campanhas vão aparecer">
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {CATEGORIAS.map((cat) => (
                 <SegButton
                   key={cat.key}
@@ -432,7 +432,7 @@ export function SequenceDispatchClient({ sequence }: { sequence: Sequence }) {
               type="button"
               onClick={() => void submit()}
               disabled={!canSubmit}
-              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+              className="rounded-xl bg-blue px-5 py-[13px] text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
             >
               {busy
                 ? 'Agendando…'

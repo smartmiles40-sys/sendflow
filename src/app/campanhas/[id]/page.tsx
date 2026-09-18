@@ -53,6 +53,10 @@ export default async function ResultadoCampanhaPage({
   const kpi = kpiBruto as CampaignKpi | null;
   const linhas = (destinatarios ?? []) as CampaignRecipient[];
   const falhas = linhas.filter((l) => l.status === 'falha');
+  // Em grupo, o WhatsApp não devolve "entregue/lida" para quem envia (confirmado na
+  // Evolution 2.3.7 em 18/09: zero atualizações de status numa mensagem de grupo). Mostrar
+  // 0% com "abaixo do esperado" fazia a equipe achar que o disparo falhou.
+  const soGrupos = campanha.alvo !== 'contatos';
 
   return (
     <div className="max-w-5xl">
@@ -111,26 +115,45 @@ export default async function ResultadoCampanhaPage({
               }
               destaque
             />
-            <Tile
-              label="Entregues"
-              valor={formatarTaxa(kpi.taxa_entrega)}
-              apoio={`${formatarNumero(kpi.entregues)} chegaram no aparelho`}
-              veredicto={avaliar(kpi.taxa_entrega, REFERENCIAS.whatsapp_entrega)}
-            />
-            <Tile
-              label="Lidas"
-              valor={formatarTaxa(kpi.taxa_leitura)}
-              apoio={`${formatarNumero(kpi.lidos)} abriram a conversa`}
-              veredicto={avaliar(kpi.taxa_leitura, REFERENCIAS.whatsapp_leitura)}
-            />
-            <Tile
-              label="Responderam"
-              valor={formatarNumero(kpi.respostas)}
-              apoio="escreveram de volta em até 7 dias — o sinal mais forte"
-              veredicto={avaliar(kpi.taxa_resposta, REFERENCIAS.whatsapp_resposta)}
-            />
+            {soGrupos ? (
+              <>
+                <Tile
+                  label="Chegaram ao grupo"
+                  valor={`${formatarNumero(kpi.enviados)} de ${formatarNumero(kpi.destinatarios)}`}
+                  apoio="o WhatsApp aceitou e a mensagem está no grupo"
+                />
+                <Tile
+                  label="Leitura"
+                  valor="—"
+                  apoio="em grupo o WhatsApp não informa quem leu — confira as reações e respostas na tela Celular"
+                />
+                <Tile label="Falharam" valor={formatarNumero(kpi.falhas)} apoio="grupos que não receberam" />
+              </>
+            ) : (
+              <>
+                <Tile
+                  label="Entregues"
+                  valor={formatarTaxa(kpi.taxa_entrega)}
+                  apoio={`${formatarNumero(kpi.entregues)} chegaram no aparelho`}
+                  veredicto={avaliar(kpi.taxa_entrega, REFERENCIAS.whatsapp_entrega)}
+                />
+                <Tile
+                  label="Lidas"
+                  valor={formatarTaxa(kpi.taxa_leitura)}
+                  apoio={`${formatarNumero(kpi.lidos)} abriram a conversa`}
+                  veredicto={avaliar(kpi.taxa_leitura, REFERENCIAS.whatsapp_leitura)}
+                />
+                <Tile
+                  label="Responderam"
+                  valor={formatarNumero(kpi.respostas)}
+                  apoio="escreveram de volta em até 7 dias — o sinal mais forte"
+                  veredicto={avaliar(kpi.taxa_resposta, REFERENCIAS.whatsapp_resposta)}
+                />
+              </>
+            )}
           </section>
 
+          {!soGrupos && (
           <section className="mb-7 grid gap-3.5 lg:grid-cols-[minmax(0,1fr)_300px]">
             <div className="rounded-xl2 border border-border bg-surface p-5">
               <Funil
@@ -169,6 +192,7 @@ export default async function ResultadoCampanhaPage({
               )}
             </div>
           </section>
+          )}
 
           {falhas.length > 0 && (
             <section className="mb-7 overflow-hidden rounded-xl2 border border-orange/25 bg-surface">
@@ -201,8 +225,8 @@ export default async function ResultadoCampanhaPage({
                     <th className="px-5 py-2.5 text-left font-semibold">Destino</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Situação</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Enviada</th>
-                    <th className="px-3 py-2.5 text-left font-semibold">Entregue</th>
-                    <th className="px-5 py-2.5 text-left font-semibold">Lida</th>
+                    {!soGrupos && <th className="px-3 py-2.5 text-left font-semibold">Entregue</th>}
+                    {!soGrupos && <th className="px-5 py-2.5 text-left font-semibold">Lida</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -216,8 +240,8 @@ export default async function ResultadoCampanhaPage({
                         {l.respondido_em && <span className="ml-1.5 text-[#D7F264]">· respondeu</span>}
                       </td>
                       <td className="px-3 py-2.5 tabular-nums text-muted">{formatWhen(l.enviado_em)}</td>
-                      <td className="px-3 py-2.5 tabular-nums text-muted">{formatWhen(l.entregue_em)}</td>
-                      <td className="px-5 py-2.5 tabular-nums text-muted">{formatWhen(l.lido_em)}</td>
+                      {!soGrupos && <td className="px-3 py-2.5 tabular-nums text-muted">{formatWhen(l.entregue_em)}</td>}
+                      {!soGrupos && <td className="px-5 py-2.5 tabular-nums text-muted">{formatWhen(l.lido_em)}</td>}
                     </tr>
                   ))}
                 </tbody>

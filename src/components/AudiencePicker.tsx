@@ -37,6 +37,7 @@ export function AudiencePicker({
   onGroupQueryChange,
   error,
   onClearError,
+  semTodos = false,
 }: {
   audiences: Audience[];
   groups: Group[];
@@ -50,6 +51,11 @@ export function AudiencePicker({
   onGroupQueryChange: (q: string) => void;
   error?: string;
   onClearError?: () => void;
+  /**
+   * Esconde o "Todos os grupos". Usado na cadência, onde destino vazio NÃO pode virar
+   * "a base inteira": cada passo esquecido seria um disparo para todos os grupos.
+   */
+  semTodos?: boolean;
 }) {
   const activeGroups = useMemo(() => groups.filter((g) => g.ativo), [groups]);
   const activeCount = activeGroups.length || GROUP_COUNT_HINT;
@@ -74,15 +80,17 @@ export function AudiencePicker({
   return (
     <Field label="Público" error={error}>
       <div className="mb-3 flex flex-wrap gap-2">
-        <SegButton
-          on={mode === 'todos'}
-          onClick={() => {
-            onModeChange('todos');
-            onClearError?.();
-          }}
-        >
-          🌐 Todos os grupos
-        </SegButton>
+        {!semTodos && (
+          <SegButton
+            on={mode === 'todos'}
+            onClick={() => {
+              onModeChange('todos');
+              onClearError?.();
+            }}
+          >
+            🌐 Todos os grupos
+          </SegButton>
+        )}
         <SegButton on={mode === 'salvo'} onClick={() => onModeChange('salvo')}>
           ⭐ Público salvo
         </SegButton>
@@ -213,7 +221,7 @@ export function AudiencePicker({
               {selectedGroupIds.length === 1 ? 'grupo selecionado' : 'grupos selecionados'}
             </>
           ) : (
-            <>Nenhum grupo marcado · envia para todos os ativos</>
+            <>{semTodos ? 'Nenhum grupo marcado' : 'Nenhum grupo marcado · envia para todos os ativos'}</>
           ))}
       </div>
     </Field>

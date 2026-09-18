@@ -100,7 +100,7 @@ export function AudiencesClient({
       </div>
 
       {/* Create new público */}
-      <div className="rounded-xl2 border border-border bg-surface p-[22px]">
+      <div className="rounded-xl2 border border-border bg-surface p-4 sm:p-[22px]">
         <div className="mb-4 text-xs font-semibold uppercase tracking-[0.08em] text-muted">
           Novo público salvo
         </div>
@@ -185,7 +185,7 @@ export function AudiencesClient({
             type="button"
             onClick={save}
             disabled={saving || !nome.trim()}
-            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
           >
             {saving ? 'Salvando…' : '💾 Salvar público'}
           </button>

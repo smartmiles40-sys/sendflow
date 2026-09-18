@@ -121,7 +121,7 @@ export function ConexoesClient({
         <button
           onClick={() => void criar()}
           disabled={criando || !nome.trim() || !configurada}
-          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+          className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
         >
           {criando ? 'Criando…' : '＋ Conectar número'}
         </button>
@@ -337,7 +337,7 @@ function CartaoConexao({
                 type="button"
                 onClick={() => void abrirQr()}
                 disabled={ocupado === 'qr'}
-                className="rounded-xl bg-blue px-4 py-2.5 text-[13px] font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:opacity-50"
+                className="rounded-xl bg-blue px-4 py-2.5 text-[13px] font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
               >
                 {ocupado === 'qr' ? 'Gerando…' : 'Ler QR Code'}
               </button>
