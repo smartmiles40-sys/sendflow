@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { listarMensagensBrutas } from '@/lib/whatsapp/evolution';
-import { juntarReacoes, paraBalao, type Balao } from '@/lib/whatsapp/conversas';
+import { juntarReacoes, lerFixadas, paraBalao, previa, type Balao } from '@/lib/whatsapp/conversas';
 import { abrirConexao, respostaDeErro } from '@/lib/whatsapp/celular-servidor';
 
 export const dynamic = 'force-dynamic';
@@ -101,5 +101,15 @@ export async function GET(req: Request) {
       }));
   }
 
-  return NextResponse.json({ baloes, paginas: lote.paginas, pagina, origem, naFila });
+  // Fixadas (faixa no topo). Só dá para saber pelo que veio nesta página do histórico; a
+  // prévia sai do balão quando ele está na página, senão fica um texto genérico.
+  const fixadas =
+    pagina === 1
+      ? lerFixadas(lote.registros, Math.floor(Date.now() / 1000)).map((f) => {
+          const b = baloes.find((x) => x.id === f.id);
+          return { ...f, texto: b ? previa(b.tipo, b.texto) || 'Mensagem' : 'Mensagem fixada' };
+        })
+      : [];
+
+  return NextResponse.json({ baloes, paginas: lote.paginas, pagina, origem, naFila, fixadas });
 }

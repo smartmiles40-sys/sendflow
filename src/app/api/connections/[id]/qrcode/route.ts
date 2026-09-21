@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import {
   conectarInstancia,
+  criarInstancia,
   definirWebhook,
   desconectarInstancia,
   estadoInstancia,
@@ -31,7 +32,21 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const conexao = data as Connection;
 
   try {
-    const estado = await estadoInstancia(conexao.instance_name);
+    // O número não existe neste servidor da Evolution (ex.: trocou-se a EVOLUTION_API_URL
+    // para um servidor novo): recria a instância com o MESMO nome e devolve o QR. Assim a
+    // conexão, os grupos e o histórico de campanhas do SendFlow continuam valendo.
+    const estado = await estadoInstancia(conexao.instance_name).catch((e) => {
+      if (!(e instanceof EvolutionError) || e.status !== 404) throw e;
+      return null;
+    });
+    if (estado === null) {
+      const qrcode = await criarInstancia(conexao.instance_name, urlDoWebhook());
+      await supabase
+        .from('connections')
+        .update({ status: 'conectando', ultimo_erro: null })
+        .eq('id', id);
+      return NextResponse.json({ estado: 'conectando', qrcode });
+    }
     if (estado === 'conectada') {
       await supabase
         .from('connections')

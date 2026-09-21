@@ -458,6 +458,9 @@ function ConversaAberta({
   const [menuDe, setMenuDe] = useState<{ id: string; left: number; top?: number; bottom?: number } | null>(null);
   const [respondendo, setRespondendo] = useState<Balao | null>(null);
   const [painel, setPainel] = useState(false);
+  const [fixadas, setFixadas] = useState<{ id: string; ate: number; texto: string }[]>([]);
+  const [fixadaVista, setFixadaVista] = useState(0);
+  const [escolhendoDuracao, setEscolhendoDuracao] = useState(false);
   const fundoRef = useRef<HTMLDivElement>(null);
   const colarNoFim = useRef(true);
   const jaMarcouLida = useRef(false);
@@ -476,6 +479,7 @@ function ConversaAberta({
       setErro(null);
       setPaginas(b.paginas ?? 1);
       setNaFila(b.naFila ?? []);
+      setFixadas(b.fixadas ?? []);
       setOrigem((o) => ({ ...o, ...(b.origem ?? {}) }));
       // Junta com o que já foi carregado de páginas antigas, sem duplicar.
       setBaloes((atual) => {
@@ -632,6 +636,38 @@ function ConversaAberta({
     );
   }
 
+  async function fixar(b: Balao, acao: 'pin' | 'unpin', duracao?: number) {
+    setMenuDe(null);
+    setEscolhendoDuracao(false);
+    const r = await fetch('/api/celular/fixar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conexao: conexaoId || null,
+        jid: conversa.jid,
+        id: b.id,
+        fromMe: b.fromMe,
+        participant: b.participant,
+        acao,
+        duracao,
+      }),
+    }).catch(() => null);
+    const corpo = await r?.json().catch(() => ({}));
+    if (!r?.ok) {
+      setAviso(corpo?.error ?? 'Não foi possível fixar.');
+      return;
+    }
+    setAviso(acao === 'pin' ? 'Mensagem fixada no topo da conversa.' : 'Mensagem desafixada.');
+    void carregar();
+  }
+
+  function irPara(id: string) {
+    document.getElementById(`msg-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  const idsFixados = new Set(fixadas.map((f) => f.id));
+  const fixadaAtual = fixadas.length ? fixadas[fixadaVista % fixadas.length] : null;
+
   const midiaUrl = (id: string) => `/api/celular/midia?conexao=${encodeURIComponent(conexaoId)}&id=${encodeURIComponent(id)}`;
 
   return (
@@ -687,6 +723,28 @@ function ConversaAberta({
             ⟳
           </button>
         </header>
+
+        {fixadaAtual && (
+          <button
+            type="button"
+            onClick={() => {
+              irPara(fixadaAtual.id);
+              // Com mais de uma fixada, cada toque mostra a próxima (igual ao WhatsApp).
+              setFixadaVista((v) => v + 1);
+            }}
+            className="flex items-center gap-2.5 border-b px-4 py-2 text-left text-[13px]"
+            style={{ background: WA.barra, borderColor: WA.linha }}
+            title="Ir para a mensagem fixada"
+          >
+            <span aria-hidden="true">📌</span>
+            <span className="min-w-0 flex-1 truncate">{fixadaAtual.texto}</span>
+            {fixadas.length > 1 && (
+              <span className="shrink-0 text-[11.5px]" style={{ color: WA.cinza }}>
+                {(fixadaVista % fixadas.length) + 1} de {fixadas.length}
+              </span>
+            )}
+          </button>
+        )}
 
         <div
           ref={fundoRef}
@@ -757,6 +815,7 @@ function ConversaAberta({
                         <button
                           type="button"
                           onClick={(e) => {
+                            setEscolhendoDuracao(false);
                             if (menuAberto) return setMenuDe(null);
                             // Menu em posição FIXA, ancorado no botão: dentro do balão ele
                             // ficava cortado pela rolagem da conversa. Abre para cima
@@ -811,6 +870,36 @@ function ConversaAberta({
                             ↩ Responder
                           </ItemMenu>
                           {b.texto && <ItemMenu onClick={() => copiar(b)}>⧉ Copiar texto</ItemMenu>}
+                          {idsFixados.has(b.id) ? (
+                            <ItemMenu onClick={() => void fixar(b, 'unpin')}>📌 Desafixar</ItemMenu>
+                          ) : escolhendoDuracao ? (
+                            <div className="px-4 py-2">
+                              <div className="mb-1.5 text-[12px]" style={{ color: WA.cinza }}>
+                                Fixar por quanto tempo?
+                              </div>
+                              <div className="flex gap-1.5">
+                                {(
+                                  [
+                                    [86_400, '24 horas'],
+                                    [604_800, '7 dias'],
+                                    [2_592_000, '30 dias'],
+                                  ] as const
+                                ).map(([s, rotulo]) => (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => void fixar(b, 'pin', s)}
+                                    className="rounded-full px-2.5 py-1 text-[12.5px]"
+                                    style={{ background: WA.verde, color: WA.fundo }}
+                                  >
+                                    {rotulo}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <ItemMenu onClick={() => setEscolhendoDuracao(true)}>📌 Fixar</ItemMenu>
+                          )}
                           {editavel && (
                             <ItemMenu
                               onClick={() => {
@@ -897,6 +986,7 @@ function ConversaAberta({
                       )}
 
                       <div className="mt-0.5 flex items-center justify-end gap-1 text-[11px]" style={{ color: b.fromMe ? '#8fb9ae' : WA.cinza }}>
+                        {idsFixados.has(b.id) && <span title="Fixada no topo da conversa">📌</span>}
                         {b.editada && <span>Editada</span>}
                         <span>{horaDe(b.ts)}</span>
                         {b.fromMe && <Tiques tique={b.tique} grupo={conversa.grupo} />}

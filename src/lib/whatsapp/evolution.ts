@@ -100,6 +100,10 @@ async function chamar<T = unknown>(
  * Sem isso a tela mostra "Error: forbidden" para quem não é admin do grupo.
  */
 const ERROS_DO_WHATSAPP: [RegExp, string][] = [
+  [
+    /Cannot POST \/chat\/pinMessage/i,
+    'este servidor da Evolution não tem a função de fixar — ele precisa ser a versão adaptada (2.3.7-pin)',
+  ],
   [/\[object Object\]/, 'o WhatsApp recusou: grupo ou conversa não encontrado (o número ainda participa?)'],
   [/not-authorized|forbidden/i, 'o WhatsApp recusou: este número precisa ser admin do grupo para isso'],
   [/item-not-found/i, 'o WhatsApp não encontrou o grupo ou a mensagem'],
@@ -622,6 +626,40 @@ export async function reagir(
         ...(alvo.participant ? { participant: alvo.participant } : {}),
       },
       reaction: emoji,
+    },
+  });
+}
+
+/** Por quanto tempo a mensagem fica fixada — as 3 opções do WhatsApp. */
+export const DURACOES_FIXAR = [86_400, 604_800, 2_592_000] as const;
+export type DuracaoFixar = (typeof DURACOES_FIXAR)[number];
+
+/**
+ * Fixa (ou desafixa) uma mensagem no topo da conversa, para todos.
+ *
+ * ATENÇÃO: `/chat/pinMessage` NÃO existe na Evolution oficial. É a rota que acrescentamos
+ * na imagem `ghcr.io/smartmiles40-sys/evolution-api:2.3.7-pin` (fork em
+ * github.com/smartmiles40-sys/evolution-api, branch `sendflow-pin`). Numa Evolution comum
+ * a chamada volta 404 e a tela explica.
+ */
+export async function fixarMensagem(
+  instanceName: string,
+  jid: string,
+  alvo: { id: string; fromMe: boolean; participant?: string | null },
+  acao: 'pin' | 'unpin',
+  duracao: DuracaoFixar = 604_800,
+): Promise<void> {
+  await chamar(`/chat/pinMessage/${encodeURIComponent(instanceName)}`, {
+    method: 'POST',
+    body: {
+      key: {
+        id: alvo.id,
+        remoteJid: jid,
+        fromMe: alvo.fromMe,
+        ...(alvo.participant ? { participant: alvo.participant } : {}),
+      },
+      action: acao,
+      ...(acao === 'pin' ? { duration: duracao } : {}),
     },
   });
 }

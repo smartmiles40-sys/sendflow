@@ -74,6 +74,7 @@ const INVISIVEIS = new Set([
   'pollUpdateMessage',
   'editedMessage',
   'keepInChatMessage',
+  'pinInChatMessage',
 ]);
 
 export function mensagemVisivel(messageType: unknown): boolean {
@@ -292,6 +293,43 @@ export function paraConversa(registro: unknown, nomesDeGrupo: Map<string, string
     naoLidas: Number(r.unreadCount) || 0,
     ultima,
   };
+}
+
+/**
+ * Quais mensagens estão fixadas agora, pelo histórico de "fixou/desafixou". No WhatsApp
+ * fixar é uma mensagem à parte (pinInChatMessage) que aponta para a fixada; type 1 fixa
+ * por `messageAddOnDurationInSecs`, type 2 desafixa. Vale o evento mais recente de cada
+ * mensagem. Devolve as fixadas da mais recente para a mais antiga (o WhatsApp mostra até 3).
+ */
+export function lerFixadas(registros: unknown[], agoraSeg: number): { id: string; ate: number }[] {
+  type Evento = { alvo: string; tipo: 'fixou' | 'desafixou'; ts: number; ate: number };
+  const eventos: Evento[] = [];
+  for (const bruto of registros) {
+    const r = obj(bruto);
+    if (r.messageType !== 'pinInChatMessage') continue;
+    const m = obj(r.message);
+    const pin = obj(m.pinInChatMessage);
+    const alvo = str(obj(pin.key).id);
+    if (!alvo) continue;
+    const tipo =
+      pin.type === 1 || pin.type === 'PIN_FOR_ALL'
+        ? 'fixou'
+        : pin.type === 2 || pin.type === 'UNPIN_FOR_ALL'
+          ? 'desafixou'
+          : null;
+    if (!tipo) continue;
+    const ts = Number(r.messageTimestamp) || 0;
+    const duracao = Number(obj(m.messageContextInfo).messageAddOnDurationInSecs) || 7 * 86_400;
+    eventos.push({ alvo, tipo, ts, ate: ts + duracao });
+  }
+  eventos.sort((a, b) => a.ts - b.ts);
+
+  const ultimo = new Map<string, Evento>();
+  for (const e of eventos) ultimo.set(e.alvo, e);
+  return [...ultimo.values()]
+    .filter((e) => e.tipo === 'fixou' && e.ate > agoraSeg)
+    .sort((a, b) => b.ts - a.ts)
+    .map((e) => ({ id: e.alvo, ate: e.ate }));
 }
 
 /** WhatsApp só deixa editar por 15 minutos depois do envio. */

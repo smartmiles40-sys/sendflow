@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { juntarReacoes, lerCitacao, paraBalao } from './conversas';
+import { juntarReacoes, lerCitacao, lerFixadas, paraBalao } from './conversas';
 import { montarCitacao, rotaGrupo, traduzirErroWhatsApp } from './evolution';
 
 const GRUPO = '120363412069179864@g.us';
@@ -106,5 +106,29 @@ describe('traduzirErroWhatsApp', () => {
   });
   it('erro desconhecido passa como veio', () => {
     expect(traduzirErroWhatsApp('502: gateway')).toBe('502: gateway');
+  });
+});
+
+describe('lerFixadas', () => {
+  const pin = (alvo: string, type: number | string, ts: number, dur = 604_800) => ({
+    key: { id: `p${ts}`, fromMe: true, remoteJid: GRUPO },
+    messageType: 'pinInChatMessage',
+    message: {
+      pinInChatMessage: { key: { id: alvo }, type },
+      messageContextInfo: { messageAddOnDurationInSecs: type === 1 ? dur : 0 },
+    },
+    messageTimestamp: ts,
+  });
+  it('fixada dentro do prazo aparece; mais recente primeiro', () => {
+    expect(lerFixadas([pin('A', 1, 100), pin('B', 'PIN_FOR_ALL', 200)], 300).map((f) => f.id)).toEqual(['B', 'A']);
+  });
+  it('desafixar depois de fixar tira da lista', () => {
+    expect(lerFixadas([pin('A', 1, 100), pin('A', 2, 150)], 300)).toEqual([]);
+  });
+  it('venceu o prazo (24h) = não está mais fixada', () => {
+    expect(lerFixadas([pin('A', 1, 100, 86_400)], 100 + 86_401)).toEqual([]);
+  });
+  it('o evento de fixar não vira balão', () => {
+    expect(paraBalao(pin('A', 1, 100))).toBeNull();
   });
 });
