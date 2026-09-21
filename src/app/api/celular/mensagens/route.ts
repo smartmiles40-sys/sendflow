@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { listarMensagensBrutas } from '@/lib/whatsapp/evolution';
-import { paraBalao, type Balao } from '@/lib/whatsapp/conversas';
+import { juntarReacoes, paraBalao, type Balao } from '@/lib/whatsapp/conversas';
 import { abrirConexao, respostaDeErro } from '@/lib/whatsapp/celular-servidor';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +37,9 @@ export async function GET(req: Request) {
     .map(paraBalao)
     .filter((b): b is Balao => b !== null)
     .sort((a, b) => a.ts - b.ts);
+  // Reação é um registro à parte no WhatsApp; aqui ela vira o selinho embaixo do balão.
+  const reacoes = juntarReacoes(lote.registros);
+  for (const b of baloes) b.reacoes = reacoes.get(b.id) ?? [];
 
   // 1 e 2: de qual campanha saiu cada balão nosso.
   const nossos = baloes.filter((b) => b.fromMe).map((b) => b.id);

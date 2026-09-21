@@ -95,8 +95,32 @@ async function chamar<T = unknown>(
   return corpo as T;
 }
 
+/**
+ * Os códigos crus do WhatsApp que chegam dentro do erro da Evolution, em português.
+ * Sem isso a tela mostra "Error: forbidden" para quem não é admin do grupo.
+ */
+const ERROS_DO_WHATSAPP: [RegExp, string][] = [
+  [/\[object Object\]/, 'o WhatsApp recusou: grupo ou conversa não encontrado (o número ainda participa?)'],
+  [/not-authorized|forbidden/i, 'o WhatsApp recusou: este número precisa ser admin do grupo para isso'],
+  [/item-not-found/i, 'o WhatsApp não encontrou o grupo ou a mensagem'],
+  [/not-acceptable/i, 'o WhatsApp não aceitou o pedido (prazo vencido ou mensagem que não pode mudar)'],
+  [/rate-overlimit/i, 'o WhatsApp pediu para ir mais devagar — tente de novo em alguns minutos'],
+  [/Reaction must be a single emoji/i, 'use um emoji só na reação'],
+];
+
+export function traduzirErroWhatsApp(mensagem: string): string {
+  for (const [padrao, frase] of ERROS_DO_WHATSAPP) {
+    if (padrao.test(mensagem)) return `${frase}. (${mensagem.slice(0, 120)})`;
+  }
+  return mensagem;
+}
+
 /** Cava a mensagem de erro da Evolution, que vem em um de vários formatos. */
 function mensagemDeErro(corpo: unknown, status: number): string {
+  return traduzirErroWhatsApp(mensagemDeErroCrua(corpo, status));
+}
+
+function mensagemDeErroCrua(corpo: unknown, status: number): string {
   if (typeof corpo === 'string' && corpo.trim()) return `${status}: ${corpo.slice(0, 300)}`;
   if (corpo && typeof corpo === 'object') {
     const c = corpo as Record<string, unknown>;
@@ -513,15 +537,215 @@ export async function editarMensagem(
   });
 }
 
-/** "Apagar para todos". O WhatsApp aceita por cerca de 2 dias depois do envio. */
+/**
+ * "Apagar para todos". O WhatsApp aceita por cerca de 2 dias depois do envio.
+ * Mensagem de OUTRA pessoa num grupo também pode ser apagada — se o número for admin;
+ * aí é preciso dizer quem mandou (`participant`).
+ */
 export async function apagarParaTodos(
   instanceName: string,
   jid: string,
   messageId: string,
+  autor: { fromMe: boolean; participant?: string | null } = { fromMe: true },
 ): Promise<void> {
   await chamar(`/chat/deleteMessageForEveryone/${encodeURIComponent(instanceName)}`, {
     method: 'DELETE',
-    body: { id: messageId, remoteJid: jid, fromMe: true },
+    body: {
+      id: messageId,
+      remoteJid: jid,
+      fromMe: autor.fromMe,
+      ...(!autor.fromMe && autor.participant ? { participant: autor.participant } : {}),
+    },
     timeoutMs: 30_000,
   });
+}
+
+// ── Conversar como no aparelho: responder, reagir, marcar como lida ─────────────
+
+/** A mensagem citada numa resposta. `participant` = autor, obrigatório em grupo. */
+export interface Citacao {
+  id: string;
+  fromMe: boolean;
+  participant?: string | null;
+  /** Texto da mensagem original — é o que aparece no quadrinho da citação. */
+  texto?: string | null;
+}
+
+/**
+ * Corpo de `quoted` que a Evolution repassa ao Baileys. Separado para testar.
+ * Sem texto (foto, áudio…) vai só a chave: a Evolution procura a mensagem original no
+ * banco dela e a citação sai com a miniatura certa.
+ */
+export function montarCitacao(jid: string, c: Citacao): Record<string, unknown> {
+  return {
+    key: {
+      id: c.id,
+      remoteJid: jid,
+      fromMe: c.fromMe,
+      ...(c.participant ? { participant: c.participant } : {}),
+    },
+    ...(c.texto ? { message: { conversation: c.texto } } : {}),
+  };
+}
+
+/**
+ * Envio feito pela pessoa na tela Celular (não pela fila de campanha): texto ou mídia,
+ * com resposta a uma mensagem e @todos opcionais.
+ */
+export async function enviarNaConversa(
+  instanceName: string,
+  envio: Envio & { citacao?: Citacao | null },
+): Promise<ResultadoEnvio> {
+  const destino = normalizarDestino(envio.destino);
+  if (!destino) throw new EvolutionError(`Destino inválido: "${envio.destino}".`, 400, true);
+  const { caminho, corpo } = montarEnvio(instanceName, envio);
+  if (envio.citacao) corpo.quoted = montarCitacao(destino, envio.citacao);
+  const resposta = await chamar<Record<string, unknown>>(caminho, { method: 'POST', body: corpo, timeoutMs: 45_000 });
+  const key = (resposta?.key ?? {}) as Record<string, unknown>;
+  return { messageId: typeof key.id === 'string' ? key.id : null, bruto: resposta };
+}
+
+/** Reage a uma mensagem. `emoji` vazio tira a reação. */
+export async function reagir(
+  instanceName: string,
+  jid: string,
+  alvo: { id: string; fromMe: boolean; participant?: string | null },
+  emoji: string,
+): Promise<void> {
+  await chamar(`/message/sendReaction/${encodeURIComponent(instanceName)}`, {
+    method: 'POST',
+    body: {
+      key: {
+        id: alvo.id,
+        remoteJid: jid,
+        fromMe: alvo.fromMe,
+        ...(alvo.participant ? { participant: alvo.participant } : {}),
+      },
+      reaction: emoji,
+    },
+  });
+}
+
+/** Marca a conversa como lida no aparelho (some o contador verde). */
+export async function marcarComoLida(
+  instanceName: string,
+  jid: string,
+  mensagens: { id: string; fromMe: boolean }[],
+): Promise<void> {
+  if (!mensagens.length) return;
+  await chamar(`/chat/markMessageAsRead/${encodeURIComponent(instanceName)}`, {
+    method: 'POST',
+    body: { readMessages: mensagens.map((m) => ({ remoteJid: jid, fromMe: m.fromMe, id: m.id })) },
+  });
+}
+
+// ── Administração de grupo ───────────────────────────────────────────────────────
+// Quase tudo aqui exige que o número conectado seja ADMIN do grupo — senão o WhatsApp
+// recusa e a Evolution devolve erro com "not-authorized"/"forbidden".
+
+export function rotaGrupo(acao: string, instanceName: string, groupJid: string): string {
+  return `/group/${acao}/${encodeURIComponent(instanceName)}?groupJid=${encodeURIComponent(groupJid)}`;
+}
+
+/** Metadados do grupo (nome, descrição, regras e participantes), crus. */
+export async function infoDoGrupoBruta(instanceName: string, groupJid: string): Promise<unknown> {
+  return chamar(rotaGrupo('findGroupInfos', instanceName, groupJid), { timeoutMs: 30_000 });
+}
+
+/** Participantes com nome e foto (quando a Evolution conhece o contato). */
+export async function participantesBrutos(instanceName: string, groupJid: string): Promise<unknown[]> {
+  const corpo = await chamar<Record<string, unknown>>(rotaGrupo('participants', instanceName, groupJid), {
+    timeoutMs: 30_000,
+  });
+  return Array.isArray(corpo?.participants) ? corpo.participants : [];
+}
+
+export async function renomearGrupo(instanceName: string, groupJid: string, nome: string): Promise<void> {
+  await chamar(rotaGrupo('updateGroupSubject', instanceName, groupJid), {
+    method: 'POST',
+    body: { subject: nome },
+  });
+}
+
+export async function mudarDescricaoGrupo(instanceName: string, groupJid: string, descricao: string): Promise<void> {
+  await chamar(rotaGrupo('updateGroupDescription', instanceName, groupJid), {
+    method: 'POST',
+    body: { description: descricao },
+  });
+}
+
+/** Foto do grupo a partir de uma URL pública (a do Storage, depois do upload). */
+export async function mudarFotoGrupo(instanceName: string, groupJid: string, imagemUrl: string): Promise<void> {
+  await chamar(rotaGrupo('updateGroupPicture', instanceName, groupJid), {
+    method: 'POST',
+    body: { image: imagemUrl },
+    timeoutMs: 45_000,
+  });
+}
+
+/**
+ * As duas chaves de "Configurações do grupo" do WhatsApp:
+ *   announcement / not_announcement → só admins enviam mensagens / todos enviam
+ *   locked / unlocked               → só admins editam dados do grupo / todos editam
+ */
+export type RegraDoGrupo = 'announcement' | 'not_announcement' | 'locked' | 'unlocked';
+
+export async function mudarRegraGrupo(instanceName: string, groupJid: string, regra: RegraDoGrupo): Promise<void> {
+  await chamar(rotaGrupo('updateSetting', instanceName, groupJid), { method: 'POST', body: { action: regra } });
+}
+
+/** Mensagens temporárias: desligado, 24 h, 7 dias ou 90 dias — os únicos que o WhatsApp aceita. */
+export const DURACOES_TEMPORARIAS = [0, 86_400, 604_800, 7_776_000] as const;
+export type DuracaoTemporaria = (typeof DURACOES_TEMPORARIAS)[number];
+
+export async function mudarTemporarias(
+  instanceName: string,
+  groupJid: string,
+  segundos: DuracaoTemporaria,
+): Promise<void> {
+  await chamar(rotaGrupo('toggleEphemeral', instanceName, groupJid), {
+    method: 'POST',
+    body: { expiration: segundos },
+  });
+}
+
+export type AcaoParticipante = 'add' | 'remove' | 'promote' | 'demote';
+
+/**
+ * Adiciona, remove, promove a admin ou tira de admin. Devolve o resultado por pessoa:
+ * o WhatsApp pode aceitar uns e recusar outros no mesmo pedido (ex.: 403 = a pessoa
+ * só aceita entrar por convite; 409 = já está no grupo).
+ */
+export async function mudarParticipantes(
+  instanceName: string,
+  groupJid: string,
+  acao: AcaoParticipante,
+  participantes: string[],
+): Promise<{ jid: string; status: string }[]> {
+  const corpo = await chamar<Record<string, unknown>>(rotaGrupo('updateParticipant', instanceName, groupJid), {
+    method: 'POST',
+    body: { action: acao, participants: participantes },
+    timeoutMs: 45_000,
+  });
+  const lista = Array.isArray(corpo?.updateParticipants) ? corpo.updateParticipants : [];
+  return lista.map((bruto) => {
+    const r = (bruto ?? {}) as Record<string, unknown>;
+    return { jid: String(r.jid ?? r.id ?? ''), status: String(r.status ?? '') };
+  });
+}
+
+/** Link de convite do grupo (chat.whatsapp.com/…). */
+export async function linkDoGrupo(instanceName: string, groupJid: string): Promise<string | null> {
+  const corpo = await chamar<Record<string, unknown>>(rotaGrupo('inviteCode', instanceName, groupJid));
+  return typeof corpo?.inviteUrl === 'string' ? corpo.inviteUrl : null;
+}
+
+/** Invalida o link atual. Quem tinha o link antigo não entra mais por ele. */
+export async function redefinirLinkDoGrupo(instanceName: string, groupJid: string): Promise<void> {
+  await chamar(rotaGrupo('revokeInviteCode', instanceName, groupJid), { method: 'POST', body: {} });
+}
+
+/** O número conectado sai do grupo. Só alguém de dentro consegue adicioná-lo de volta. */
+export async function sairDoGrupo(instanceName: string, groupJid: string): Promise<void> {
+  await chamar(rotaGrupo('leaveGroup', instanceName, groupJid), { method: 'DELETE' });
 }

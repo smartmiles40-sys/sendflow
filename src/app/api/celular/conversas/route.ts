@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { listarConversasBrutas } from '@/lib/whatsapp/evolution';
 import { paraConversa, type Conversa } from '@/lib/whatsapp/conversas';
 import { abrirConexao, respostaDeErro } from '@/lib/whatsapp/celular-servidor';
+import { comTagIds } from '@/lib/tags';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,12 +25,14 @@ export async function GET(req: Request) {
     return respostaDeErro(e);
   }
 
-  const [{ data: grupos }, { data: agendadas }] = await Promise.all([
-    supabase.from('groups').select('group_id,nome,ativo'),
+  const [{ data: grupos }, { data: agendadas }, { data: tags }] = await Promise.all([
+    supabase.from('groups').select('id,group_id,nome,ativo,group_tag_links(tag_id)'),
     supabase.from('campaigns').select('group_ids,audience_id,alvo').in('status', ['agendada', 'enviando']),
+    supabase.from('group_tags').select('*').order('nome'),
   ]);
   const nomes = new Map((grupos ?? []).map((g) => [g.group_id as string, g.nome as string]));
   const ativos = new Set((grupos ?? []).filter((g) => g.ativo).map((g) => g.group_id as string));
+  const porJid = new Map((grupos ?? []).map((g) => [g.group_id as string, comTagIds(g)]));
 
   const conversas = brutas
     .map((b) => paraConversa(b, nomes))
@@ -38,6 +41,9 @@ export async function GET(req: Request) {
       ...c,
       sendflow: c.grupo ? nomes.has(c.jid) : false,
       ativo: ativos.has(c.jid),
+      // Id do grupo no SendFlow (para pôr tag daqui mesmo) e as tags dele.
+      grupoId: porJid.get(c.jid)?.id ?? null,
+      tag_ids: porJid.get(c.jid)?.tag_ids ?? [],
       // Campanha na fila citando este grupo pelo nome. (Público salvo e "todos" ficam de
       // fora desta marca rápida; a conversa aberta mostra a fila completa.)
       naFila: (agendadas ?? []).some((a) => Array.isArray(a.group_ids) && a.group_ids.includes(c.jid)),
@@ -47,5 +53,6 @@ export async function GET(req: Request) {
   return NextResponse.json({
     conexao: { id: conexao.id, nome: conexao.nome, numero: conexao.numero },
     conversas,
+    tags: tags ?? [],
   });
 }

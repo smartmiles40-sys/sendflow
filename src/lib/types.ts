@@ -22,6 +22,16 @@ export interface Group {
   participantes?: number | null;
   foto_url?: string | null;
   sincronizado_em?: string | null;
+  /** Tags do grupo (ids de `group_tags`). Montado pela API a partir da tabela de ligação. */
+  tag_ids?: string[];
+}
+
+export interface GroupTag {
+  id: string;
+  nome: string;
+  /** Cor em hex (#RRGGBB), usada no selo da tag. */
+  cor: string;
+  criado_em: string;
 }
 
 export interface Audience {

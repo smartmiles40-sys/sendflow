@@ -4,6 +4,12 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Connection } from '@/lib/types';
 import { EvolutionError } from './evolution';
 
+/** A mídia é do nosso Storage? A rota de envio não pode virar um "manda qualquer URL". */
+export function midiaDoSendflow(url: string, supabaseUrl: string): boolean {
+  const base = supabaseUrl.replace(/\/+$/, '');
+  return Boolean(base) && url.startsWith(`${base}/storage/v1/object/public/`);
+}
+
 /**
  * A conexão pedida, ou a primeira conectada. Devolve a resposta de erro pronta quando
  * não há número para ler — quem chama só repassa.

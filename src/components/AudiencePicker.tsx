@@ -1,9 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import type { Audience, Group } from '@/lib/types';
+import type { Audience, Group, GroupTag } from '@/lib/types';
+import { gruposDaTag, ordenarTags } from '@/lib/tags';
 import { Field, SegButton, inputCls } from './ui';
+import { TagChip } from './TagChip';
 
 export type AudienceMode = 'todos' | 'salvo' | 'grupos';
 
@@ -38,6 +40,7 @@ export function AudiencePicker({
   error,
   onClearError,
   semTodos = false,
+  onSetGroups,
 }: {
   audiences: Audience[];
   groups: Group[];
@@ -56,8 +59,48 @@ export function AudiencePicker({
    * "a base inteira": cada passo esquecido seria um disparo para todos os grupos.
    */
   semTodos?: boolean;
+  /** Troca a seleção inteira de uma vez (usado pelo "marcar por tag"). */
+  onSetGroups?: (groupIds: string[]) => void;
 }) {
   const activeGroups = useMemo(() => groups.filter((g) => g.ativo), [groups]);
+
+  // Tags: atalho para marcar de uma vez todos os grupos ativos de uma live/turma.
+  const [tags, setTags] = useState<GroupTag[]>([]);
+  useEffect(() => {
+    let vivo = true;
+    fetch('/api/tags')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((t: GroupTag[]) => {
+        if (vivo) setTags(ordenarTags(Array.isArray(t) ? t : []));
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  const tagsUsadas = useMemo(
+    () => tags.filter((t) => gruposDaTag(groups, t.id).length > 0),
+    [tags, groups],
+  );
+
+  /** Marca todos os grupos ativos da tag; se já estavam todos marcados, desmarca. */
+  function alternarTag(tagId: string) {
+    const daTag = gruposDaTag(groups, tagId);
+    const todos = daTag.every((id) => selectedGroupIds.includes(id));
+    if (onSetGroups) {
+      onSetGroups(
+        todos
+          ? selectedGroupIds.filter((id) => !daTag.includes(id))
+          : [...new Set([...selectedGroupIds, ...daTag])],
+      );
+    } else {
+      // Só é seguro em pai que usa setState funcional (senão só o último toque vale).
+      for (const id of daTag) {
+        if (todos || !selectedGroupIds.includes(id)) onToggleGroup(id);
+      }
+    }
+    onClearError?.();
+  }
   const activeCount = activeGroups.length || GROUP_COUNT_HINT;
 
   function audienceGroupCount(a: Audience): number {
@@ -170,6 +213,26 @@ export function AudiencePicker({
             placeholder="🔎 Buscar grupo pelo nome ou ID…"
             className={`${inputCls} mb-3 py-2.5`}
           />
+          {tagsUsadas.length > 0 && (
+            <div className="mb-3">
+              <div className="mb-1.5 text-xs text-muted">Marcar por tag:</div>
+              <div className="flex flex-wrap gap-1.5">
+                {tagsUsadas.map((t) => {
+                  const daTag = gruposDaTag(groups, t.id);
+                  return (
+                    <TagChip
+                      key={t.id}
+                      tag={t}
+                      contagem={daTag.length}
+                      ativo={daTag.every((id) => selectedGroupIds.includes(id))}
+                      onClick={() => alternarTag(t.id)}
+                      titulo={`Marca os ${daTag.length} grupos ativos com esta tag`}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div className="max-h-72 overflow-auto rounded-xl border border-border">
             {groups.length === 0 ? (
               <div className="px-3.5 py-6 text-sm text-muted">

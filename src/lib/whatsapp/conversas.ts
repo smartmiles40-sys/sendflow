@@ -30,6 +30,19 @@ export interface Balao {
   ts: number;
   tique: Tique;
   editada: boolean;
+  /** Em grupo, o id do autor (pode ser @lid). Precisa ir junto para responder, reagir ou apagar. */
+  participant: string | null;
+  /** A mensagem que esta responde, quando é uma resposta. */
+  citacao: { id: string; texto: string } | null;
+  /** Reações recebidas, já somadas por emoji. Preenchido pela rota com `juntarReacoes`. */
+  reacoes: Reacao[];
+}
+
+export interface Reacao {
+  emoji: string;
+  quantos: number;
+  /** O número conectado reagiu com este emoji. */
+  minha: boolean;
 }
 
 export interface Conversa {
@@ -163,6 +176,8 @@ export function paraBalao(registro: unknown): Balao | null {
   const tique = fromMe ? melhorTique(r.status, ...updates.map((u) => obj(u).status)) : null;
   const ts = Number(r.messageTimestamp);
   return {
+    participant: fromMe ? null : str(key.participant),
+    citacao: lerCitacao(r),
     id,
     fromMe,
     tipo,
@@ -173,7 +188,71 @@ export function paraBalao(registro: unknown): Balao | null {
     // Se o WhatsApp mandou um "o texto agora é X", o registro já vem com o texto novo.
     tique: tique ?? (fromMe ? 'enviado' : null),
     editada: Boolean(obj(obj(r.message).editedMessage).message) || Boolean(r.editedAt),
+    reacoes: [],
   };
+}
+
+/**
+ * Se a mensagem é uma resposta, qual ela cita. O contextInfo mora dentro do tipo da
+ * mensagem (extendedTextMessage, imageMessage…), e a Evolution às vezes copia para fora.
+ */
+export function lerCitacao(registro: unknown): Balao['citacao'] {
+  const r = obj(registro);
+  const m = obj(r.message);
+  let ctx = obj(r.contextInfo);
+  if (!str(ctx.stanzaId)) {
+    for (const v of Object.values(m)) {
+      const c = obj(obj(v).contextInfo);
+      if (str(c.stanzaId)) {
+        ctx = c;
+        break;
+      }
+    }
+  }
+  const id = str(ctx.stanzaId);
+  if (!id) return null;
+  const q = lerConteudo(null, ctx.quotedMessage);
+  return { id, texto: previa(q.tipo, q.texto) || 'Mensagem' };
+}
+
+/**
+ * Soma as reações da página por mensagem-alvo. Cada pessoa vale UMA reação por
+ * mensagem — a mais recente; reação vazia é "tirou a reação".
+ */
+export function juntarReacoes(registros: unknown[]): Map<string, Reacao[]> {
+  // alvo → autor → { emoji, ts, minha }
+  const ultimas = new Map<string, Map<string, { emoji: string; ts: number; minha: boolean }>>();
+  for (const bruto of registros) {
+    const r = obj(bruto);
+    if (r.messageType !== 'reactionMessage') continue;
+    const reacao = obj(obj(r.message).reactionMessage);
+    const alvo = str(obj(reacao.key).id);
+    if (!alvo) continue;
+    const key = obj(r.key);
+    const minha = key.fromMe === true;
+    const autor = minha ? 'eu' : (str(key.participant) ?? str(key.remoteJid) ?? '?');
+    const ts = Number(r.messageTimestamp) || 0;
+    const porAutor = ultimas.get(alvo) ?? new Map();
+    const atual = porAutor.get(autor);
+    if (!atual || ts >= atual.ts) {
+      porAutor.set(autor, { emoji: typeof reacao.text === 'string' ? reacao.text : '', ts, minha });
+    }
+    ultimas.set(alvo, porAutor);
+  }
+  const saida = new Map<string, Reacao[]>();
+  for (const [alvo, porAutor] of ultimas) {
+    const soma = new Map<string, Reacao>();
+    for (const { emoji, minha } of porAutor.values()) {
+      if (!emoji) continue;
+      const x = soma.get(emoji) ?? { emoji, quantos: 0, minha: false };
+      x.quantos += 1;
+      x.minha ||= minha;
+      soma.set(emoji, x);
+    }
+    const lista = [...soma.values()].sort((a, b) => b.quantos - a.quantos);
+    if (lista.length) saida.set(alvo, lista);
+  }
+  return saida;
 }
 
 /** Um registro de `chat/findChats` → conversa da lista. */

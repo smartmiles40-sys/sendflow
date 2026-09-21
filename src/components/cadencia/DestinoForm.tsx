@@ -140,6 +140,7 @@ export function DestinoForm({
               group_ids: grupos.includes(gid) ? grupos.filter((x) => x !== gid) : [...grupos, gid],
             })
           }
+          onSetGroups={(ids) => onChange({ ...valor, audience_id: null, group_ids: ids })}
           groupQuery={busca}
           onGroupQueryChange={setBusca}
           error={erro}

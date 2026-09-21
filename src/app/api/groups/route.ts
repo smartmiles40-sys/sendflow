@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/http';
+import { comTagIds } from '@/lib/tags';
 
 export async function GET() {
   const supabase = createServerClient();
   const { data, error } = await supabase
-    .from('groups').select('*').order('criado_em', { ascending: false });
+    .from('groups')
+    .select('*, group_tag_links(tag_id)')
+    .order('criado_em', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json((data ?? []).map(comTagIds));
 }
 
 export async function POST(req: Request) {
@@ -25,5 +28,5 @@ export async function POST(req: Request) {
     .insert({ group_id, nome, ativo: Boolean(body.ativo ?? true) })
     .select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
+  return NextResponse.json({ ...data, tag_ids: [] }, { status: 201 });
 }
