@@ -4,6 +4,7 @@ import { readJson } from '@/lib/http';
 import { isCategoria } from '@/lib/categories';
 import { dispararTick } from '@/lib/dispatch/gatilho';
 import { limparOpcoes, validarEnquete } from '@/lib/enquete';
+import { lerVariaveis, validarCanalNoServidor } from '@/lib/whatsapp/canal-servidor';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,10 @@ const CAMPOS_EDITAVEIS = [
   'connection_id',
   'enquete_opcoes',
   'enquete_multipla',
+  'template_nome',
+  'template_idioma',
+  'template_variaveis',
+  'template_cabecalho_url',
 ];
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -111,9 +116,40 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       clean.midia_url = null;
     }
   }
+  if ('template_variaveis' in clean) clean.template_variaveis = lerVariaveis(clean.template_variaveis);
+
   // Reenviar devolve a campanha para a fila. Os outros status (enviando/enviada/erro)
   // são do motor — o cliente não escreve neles.
   if (patch.status === 'agendada') clean.status = 'agendada';
+
+  /**
+   * A REGRA do canal, conferida sobre como a campanha vai FICAR depois da edição.
+   *
+   * Conferir só o que veio no patch não bastaria: trocar apenas o `alvo` para
+   * 'contatos', mantendo o chip que já estava gravado, passaria por aqui e só seria
+   * barrado lá no trigger do banco — como exceção crua, sem campo destacado na tela.
+   */
+  if (clean.status === 'agendada' || 'alvo' in clean || 'connection_id' in clean || 'template_nome' in clean) {
+    const { data: atual } = await supabase
+      .from('campaigns')
+      .select('alvo,connection_id,template_nome,template_idioma,template_variaveis,template_cabecalho_url,status')
+      .eq('id', id)
+      .maybeSingle();
+    if (!atual) return NextResponse.json({ error: 'Campanha não encontrada.' }, { status: 404 });
+
+    const depois = { ...atual, ...clean } as Record<string, unknown>;
+    if (depois.status !== 'rascunho') {
+      const problemas = await validarCanalNoServidor(supabase, {
+        alvo: depois.alvo === 'contatos' ? 'contatos' : 'grupos',
+        connectionId: (depois.connection_id as string | null) ?? null,
+        templateNome: (depois.template_nome as string | null) ?? null,
+        templateIdioma: (depois.template_idioma as string | null) ?? null,
+        variaveis: (depois.template_variaveis as Record<string, string> | null) ?? null,
+        cabecalhoUrl: (depois.template_cabecalho_url as string | null) ?? null,
+      });
+      if (problemas.length) return NextResponse.json({ errors: problemas }, { status: 400 });
+    }
+  }
 
   if (!Object.keys(clean).length) {
     return NextResponse.json({ error: 'Nada para atualizar.' }, { status: 400 });

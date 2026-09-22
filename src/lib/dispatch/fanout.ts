@@ -6,6 +6,7 @@
 
 import type { Audience, Campaign, Contact, Group } from '../types';
 import { normalizarDestino, normalizarTelefoneBR, telefoneValido } from '../whatsapp/jid';
+import { resolverVariaveis } from '../whatsapp/massa';
 
 export interface LinhaDestinatario {
   campaign_id: string;
@@ -15,6 +16,12 @@ export interface LinhaDestinatario {
   destino_tipo: 'grupo' | 'contato';
   contact_id: string | null;
   status: 'pendente';
+  /**
+   * Variáveis do template já resolvidas PARA ESTA PESSOA. Resolver no fan-out e não
+   * na hora do envio deixa a retentativa determinística: a segunda tentativa manda
+   * exatamente o mesmo texto da primeira, mesmo que o contato mude no meio.
+   */
+  variaveis?: Record<string, string> | null;
 }
 
 export interface ResultadoFanout {
@@ -69,6 +76,64 @@ export function gruposDaCampanha(campanha: Campaign, grupos: Group[], audience: 
       }
     );
   });
+}
+
+/**
+ * Monta as linhas de um LOTE de contatos. É a peça usada pelo fan-out em fatias: o
+ * worker lê os contatos de mil em mil e chama isto para cada página, em vez de
+ * carregar 50 mil contatos na memória de uma função serverless de 60 s.
+ *
+ * `vistos` vem de fora para o dedupe atravessar as páginas — dois contatos com o mesmo
+ * telefone em listas diferentes são um destino só.
+ */
+export function montarLinhasDeContatos(
+  campanha: Campaign,
+  contatos: Contact[],
+  conexaoId: string | null,
+  opcoes: { variaveisDoTemplate?: number; vistos?: Set<string> } = {},
+): { linhas: LinhaDestinatario[]; ignorados: number } {
+  const vistos = opcoes.vistos ?? new Set<string>();
+  const linhas: LinhaDestinatario[] = [];
+  let ignorados = 0;
+
+  for (const contato of contatos) {
+    // Quem pediu para sair FICA DE FORA. É a mesma regra do e-mail, e aqui ela pesa
+    // ainda mais: insistir com quem pediu para parar derruba a qualidade do número na
+    // Meta, e a qualidade é quem define o teto diário de todo o resto.
+    if (contato.status_whatsapp !== 'ativo') {
+      ignorados += 1;
+      continue;
+    }
+    const telefone = normalizarTelefoneBR(contato.telefone ?? '');
+    if (!telefoneValido(telefone) || vistos.has(telefone)) {
+      ignorados += 1;
+      continue;
+    }
+    vistos.add(telefone);
+
+    const valores = resolverVariaveis(
+      campanha.template_variaveis ?? null,
+      contato,
+      opcoes.variaveisDoTemplate,
+    );
+
+    linhas.push({
+      campaign_id: campanha.id,
+      connection_id: conexaoId,
+      destino: telefone,
+      destino_nome: contato.nome ?? null,
+      destino_tipo: 'contato',
+      contact_id: contato.id,
+      status: 'pendente',
+      // Guardado como mapa posição → texto para casar com `template_variaveis` e ser
+      // legível numa consulta ao banco ("o que exatamente foi mandado para a Maria?").
+      variaveis: valores.length
+        ? Object.fromEntries(valores.map((v, i) => [String(i + 1), v]))
+        : null,
+    });
+  }
+
+  return { linhas, ignorados };
 }
 
 /** Monta as linhas da fila para uma campanha de WhatsApp. */

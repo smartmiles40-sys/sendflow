@@ -349,6 +349,27 @@ async function drenar(
         resultado.enviados += 1;
       } catch (e) {
         const erro = e instanceof EmailError ? e : new EmailError(String(e));
+
+        // Limite de ritmo do provedor NÃO é culpa deste destinatário. Devolver a linha
+        // para a fila COM A TENTATIVA DE VOLTA é o que impede o 429 de queimar a
+        // campanha inteira: sem isso, as três tentativas de cada um eram gastas em
+        // segundos contra um limite que passaria em meio minuto.
+        if (erro.status === 429) {
+          await supabase
+            .from('email_recipients')
+            .update({ status: 'pendente', tentativas: item.tentativas, erro: erro.message.slice(0, 500) })
+            .eq('id', item.id);
+          resultado.avisos.push(
+            `O provedor pediu ${Math.round(erro.esperarMs / 1000)}s de pausa — a fila continua no próximo ciclo.`,
+          );
+          // Esperar aqui só vale se sobrar orçamento para mandar alguma coisa depois.
+          if (orcamento.cabe(erro.esperarMs + CUSTO_ENVIO_MS)) {
+            await dormir(erro.esperarMs);
+            continue;
+          }
+          return;
+        }
+
         const desistir = erro.permanente || item.tentativas + 1 >= MAX_TENTATIVAS;
         await supabase
           .from('email_recipients')

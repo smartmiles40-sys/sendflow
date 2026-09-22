@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/http';
 import { apagarInstancia, EvolutionError, infoInstancia } from '@/lib/whatsapp/evolution';
+import { CloudError, lerSaudeDoNumero } from '@/lib/whatsapp/cloud';
+import { instanciaDe } from '@/lib/whatsapp/conexao';
 import type { Connection } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -21,8 +23,46 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!data) return NextResponse.json({ error: 'Conexão não encontrada.' }, { status: 404 });
 
   const conexao = data as Connection;
+
+  // Número da API oficial: o "estado real" não é uma sessão de aparelho, é a saúde do
+  // número na Meta. A `qualidade` é o termômetro que antecede a punição — quando cai
+  // para RED, o teto diário despenca e o número entra em revisão. Vale a ida à Meta.
+  if (conexao.provider === 'cloud' && conexao.phone_number_id) {
+    try {
+      const saude = await lerSaudeDoNumero(conexao.phone_number_id);
+      const mudou =
+        saude.qualidade !== conexao.qualidade ||
+        (saude.numero && saude.numero !== conexao.numero) ||
+        (saude.nome && saude.nome !== conexao.profile_name);
+      if (mudou) {
+        const { data: atualizada } = await supabase
+          .from('connections')
+          .update({
+            status: 'conectada',
+            qualidade: saude.qualidade,
+            numero: saude.numero ?? conexao.numero,
+            profile_name: saude.nome ?? conexao.profile_name,
+            ultimo_erro: null,
+          })
+          .eq('id', id)
+          .select()
+          .maybeSingle();
+        return NextResponse.json({ conexao: atualizada ?? conexao, limite: saude.limite });
+      }
+      return NextResponse.json({ conexao, limite: saude.limite });
+    } catch (e) {
+      return NextResponse.json({
+        conexao,
+        aviso: e instanceof CloudError ? e.message : String(e),
+      });
+    }
+  }
+
+  const instancia = instanciaDe(conexao);
+  if (!instancia) return NextResponse.json({ conexao });
+
   try {
-    const info = await infoInstancia(conexao.instance_name);
+    const info = await infoInstancia(instancia);
     const mudou =
       info.estado !== conexao.status ||
       (info.numero && info.numero !== conexao.numero) ||
@@ -53,7 +93,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({ conexao });
 }
 
-const CAMPOS_EDITAVEIS = ['nome', 'ativo', 'delay_min_seg', 'delay_max_seg', 'limite_diario'] as const;
+const CAMPOS_EDITAVEIS = [
+  'nome',
+  'ativo',
+  'delay_min_seg',
+  'delay_max_seg',
+  'limite_diario',
+  // Ritmo da API oficial. Não se aplica ao chip, que é governado pelo delay aleatório.
+  'msgs_por_segundo',
+] as const;
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -72,6 +120,21 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       patch.nome = nome;
     } else if (campo === 'ativo') {
       patch.ativo = Boolean(body.ativo);
+    } else if (campo === 'msgs_por_segundo') {
+      // A faixa é a mesma do CHECK da 0019: validar aqui troca um 500 cru do Postgres
+      // por um erro que a tela sabe mostrar no campo certo.
+      const n = Number(body.msgs_por_segundo);
+      if (!Number.isInteger(n) || n < 1 || n > 80) {
+        return NextResponse.json(
+          {
+            errors: [
+              { field: 'msgs_por_segundo', message: 'O ritmo precisa ficar entre 1 e 80 mensagens por segundo.' },
+            ],
+          },
+          { status: 400 },
+        );
+      }
+      patch.msgs_por_segundo = n;
     } else {
       const n = Number(body[campo]);
       if (!Number.isInteger(n) || n < 0) {
@@ -148,10 +211,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   // Tenta apagar do lado da Evolution, mas não trava a remoção local: instância que já
   // não existe lá devolve 404, e insistir deixaria a conexão zumbi aqui para sempre.
   let aviso: string | null = null;
-  try {
-    await apagarInstancia((conexao as Connection).instance_name);
-  } catch (e) {
-    aviso = e instanceof EvolutionError ? e.message : String(e);
+  const instancia = instanciaDe(conexao as Connection);
+  if (instancia) {
+    try {
+      await apagarInstancia(instancia);
+    } catch (e) {
+      aviso = e instanceof EvolutionError ? e.message : String(e);
+    }
   }
 
   const { error } = await supabase.from('connections').delete().eq('id', id);

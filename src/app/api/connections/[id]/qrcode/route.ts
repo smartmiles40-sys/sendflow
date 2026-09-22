@@ -8,7 +8,7 @@ import {
   estadoInstancia,
   EvolutionError,
 } from '@/lib/whatsapp/evolution';
-import { urlDoWebhook } from '@/lib/whatsapp/conexao';
+import { instanciaDe, SEM_INSTANCIA, urlDoWebhook } from '@/lib/whatsapp/conexao';
 import type { Connection } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -31,16 +31,21 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!data) return NextResponse.json({ error: 'Conexão não encontrada.' }, { status: 404 });
   const conexao = data as Connection;
 
+  // Número da API oficial não tem QR Code: ele é registrado no Business Manager da
+  // Meta, não pareado com um aparelho.
+  const instancia = instanciaDe(conexao);
+  if (!instancia) return NextResponse.json({ error: SEM_INSTANCIA }, { status: 409 });
+
   try {
     // O número não existe neste servidor da Evolution (ex.: trocou-se a EVOLUTION_API_URL
     // para um servidor novo): recria a instância com o MESMO nome e devolve o QR. Assim a
     // conexão, os grupos e o histórico de campanhas do SendFlow continuam valendo.
-    const estado = await estadoInstancia(conexao.instance_name).catch((e) => {
+    const estado = await estadoInstancia(instancia).catch((e) => {
       if (!(e instanceof EvolutionError) || e.status !== 404) throw e;
       return null;
     });
     if (estado === null) {
-      const qrcode = await criarInstancia(conexao.instance_name, urlDoWebhook());
+      const qrcode = await criarInstancia(instancia, urlDoWebhook());
       await supabase
         .from('connections')
         .update({ status: 'conectando', ultimo_erro: null })
@@ -56,9 +61,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
 
     // Best-effort: um erro aqui não deve impedir a pessoa de ver o QR.
-    await definirWebhook(conexao.instance_name, urlDoWebhook()).catch(() => {});
+    await definirWebhook(instancia, urlDoWebhook()).catch(() => {});
 
-    const qrcode = await conectarInstancia(conexao.instance_name);
+    const qrcode = await conectarInstancia(instancia);
     await supabase
       .from('connections')
       .update({ status: 'conectando', ultimo_erro: null })
@@ -81,8 +86,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { data } = await supabase.from('connections').select('*').eq('id', id).maybeSingle();
   if (!data) return NextResponse.json({ error: 'Conexão não encontrada.' }, { status: 404 });
 
+  const instancia = instanciaDe(data as Connection);
+  if (!instancia) return NextResponse.json({ error: SEM_INSTANCIA }, { status: 409 });
+
   try {
-    await desconectarInstancia((data as Connection).instance_name);
+    await desconectarInstancia(instancia);
   } catch (e) {
     const erro = e instanceof EvolutionError ? e : new EvolutionError(String(e));
     return NextResponse.json({ error: erro.message }, { status: erro.status || 502 });

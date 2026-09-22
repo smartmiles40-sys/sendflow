@@ -11,26 +11,42 @@ export function midiaDoSendflow(url: string, supabaseUrl: string): boolean {
 }
 
 /**
+ * Uma conexão que tem instância na Evolution. O tipo existe para o compilador cobrar
+ * a verificação: `instance_name` é nulo nas conexões da API oficial, e toda rota do
+ * Celular precisa de uma instância para funcionar.
+ */
+export type ConexaoEvolution = Connection & { instance_name: string };
+
+/**
  * A conexão pedida, ou a primeira conectada. Devolve a resposta de erro pronta quando
  * não há número para ler — quem chama só repassa.
+ *
+ * Só devolve conexão da EVOLUTION, e de propósito: a tela Celular lê conversas,
+ * mensagens e grupos de um aparelho. A API oficial da Meta não expõe nada disso — ela
+ * entrega mensagens por webhook e não tem "histórico de conversa" para consultar.
+ * Deixar um número oficial chegar aqui daria 404 da Evolution em vez de uma explicação.
  */
 export async function abrirConexao(
   supabase: SupabaseClient,
   id: string | null,
-): Promise<{ conexao: Connection } | { res: NextResponse }> {
-  let q = supabase.from('connections').select('*');
+): Promise<{ conexao: ConexaoEvolution } | { res: NextResponse }> {
+  let q = supabase.from('connections').select('*').eq('provider', 'evolution');
   q = id ? q.eq('id', id) : q.eq('status', 'conectada').order('criado_em', { ascending: true });
   const { data } = await q.limit(1);
   const conexao = (data?.[0] ?? null) as Connection | null;
-  if (!conexao) {
+  if (!conexao || !conexao.instance_name) {
     return {
       res: NextResponse.json(
-        { error: id ? 'Conexão não encontrada.' : 'Nenhum número conectado. Conecte um em Conexões.' },
+        {
+          error: id
+            ? 'Esta conexão não é um número conectado por QR Code. A tela Celular só funciona com chip (Evolution).'
+            : 'Nenhum chip conectado. Conecte um número por QR Code em Conexões.',
+        },
         { status: 404 },
       ),
     };
   }
-  return { conexao };
+  return { conexao: conexao as ConexaoEvolution };
 }
 
 /** Erro da Evolution → resposta HTTP com a mensagem em português. */

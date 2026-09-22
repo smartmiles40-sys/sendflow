@@ -4,6 +4,7 @@ import { rodarWhatsApp } from '@/lib/dispatch/whatsapp-worker';
 import { rodarEmail } from '@/lib/dispatch/email-worker';
 import { Orcamento } from '@/lib/dispatch/ritmo';
 import { refillSePreciso } from '@/lib/dispatch/refill-periodico';
+import { avisarSePreciso } from '@/lib/dispatch/alerta';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,16 @@ export const maxDuration = 60;
  * linhas em 'enviando' que só voltam depois de 15 minutos.
  */
 const ORCAMENTO_MS = 45_000;
+
+/**
+ * A fatia que o e-mail tem garantida, mesmo com a fila de WhatsApp cheia.
+ *
+ * Antes desta sprint os dois canais dividiam UM orçamento e o WhatsApp rodava primeiro:
+ * com fila cheia ele consumia os 45 s e o e-mail recebia zero — a campanha de e-mail
+ * ficava "enviando" indefinidamente sem que nada estivesse quebrado. Reservar é o
+ * conserto; a folga que o WhatsApp não usar volta para o e-mail logo abaixo.
+ */
+const RESERVA_EMAIL_MS = 15_000;
 
 /**
  * O relógio do sistema. Chamado de minuto em minuto por um agendador externo
@@ -44,25 +55,27 @@ async function executar(req: Request) {
 
   const canal = (new URL(req.url).searchParams.get('canal') ?? 'todos').toLowerCase();
   const inicio = Date.now();
-  const orcamento = new Orcamento(ORCAMENTO_MS, inicio);
   const supabase = createServerClient();
   const agora = new Date();
 
   // WhatsApp primeiro: é o canal com restrição de ritmo, então é ele que precisa da
-  // maior fatia do orçamento. O e-mail aproveita o que sobrar e, sendo rápido, costuma
-  // esvaziar a fila inteira no resto do tempo.
+  // maior fatia. Mas ele roda com um TETO — sem isso, uma fila grande de WhatsApp
+  // deixava o e-mail com orçamento zero, tick após tick.
+  const tetoWhatsApp = canal === 'whatsapp' ? ORCAMENTO_MS : ORCAMENTO_MS - RESERVA_EMAIL_MS;
   const whatsapp =
     canal === 'email'
       ? null
-      : await rodarWhatsApp(supabase, orcamento, agora).catch((e) => {
+      : await rodarWhatsApp(supabase, new Orcamento(tetoWhatsApp, inicio), agora).catch((e) => {
           console.error('[tick] whatsapp falhou:', e);
           return null;
         });
 
+  // O e-mail fica com tudo que sobrou: a reserva mais o que o WhatsApp não gastou.
+  const restanteMs = Math.max(0, ORCAMENTO_MS - (Date.now() - inicio));
   const email =
     canal === 'whatsapp'
       ? null
-      : await rodarEmail(supabase, orcamento, agora).catch((e) => {
+      : await rodarEmail(supabase, new Orcamento(restanteMs), agora).catch((e) => {
           console.error('[tick] email falhou:', e);
           return null;
         });
@@ -77,10 +90,20 @@ async function executar(req: Request) {
 
   const restante = (whatsapp?.pendentes ?? 0) + (email?.pendentes ?? 0);
 
+  // O vigia vem por último e nunca lança: se o motor parou, alguém precisa saber por
+  // e-mail — a tela dizendo "enviando" é indistinguível de "está indo bem".
+  const alertas = await avisarSePreciso(
+    supabase,
+    whatsapp?.pendentes ?? 0,
+    whatsapp?.enviadas ?? 0,
+    agora,
+  );
+
   return NextResponse.json({
     ok: true,
     duracao_ms: Date.now() - inicio,
     restante,
+    alertas,
     whatsapp,
     email,
     recorrentes,

@@ -34,3 +34,23 @@ export function urlDoWebhook(): string {
   const base = `${urlPublica()}/api/webhooks/evolution`;
   return segredo ? `${base}?s=${encodeURIComponent(segredo)}` : base;
 }
+
+/**
+ * A instância da Evolution desta conexão, ou `null` quando não há.
+ *
+ * Desde a 0019 `instance_name` é nulo nas conexões da API oficial — elas não têm
+ * instância nem QR Code, e tudo que é "aparelho" (ler conversas, sincronizar grupos,
+ * reconectar) simplesmente não existe lá. Este atalho é o que faz o compilador cobrar
+ * a verificação em cada rota que fala com um aparelho.
+ */
+export function instanciaDe(conexao: {
+  provider?: string;
+  instance_name?: string | null;
+}): string | null {
+  if (conexao.provider && conexao.provider !== 'evolution') return null;
+  return conexao.instance_name || null;
+}
+
+/** A frase que a tela mostra quando a rota de aparelho recebe um número oficial. */
+export const SEM_INSTANCIA =
+  'Esta conexão é um número da API oficial da Meta. QR Code, grupos e conversas só existem em número conectado por chip.';

@@ -107,6 +107,11 @@ describe('buildRecorrenciaRow', () => {
       connection_id: null,
       enviar_em: '2026-08-31T12:00:00.000Z',
       status: 'agendada',
+      // Recorrência é sempre de grupo, e grupo não usa template da Meta.
+      template_nome: null,
+      template_idioma: null,
+      template_variaveis: null,
+      template_cabecalho_url: null,
       recorrencia_id: 'r1',
     });
   });

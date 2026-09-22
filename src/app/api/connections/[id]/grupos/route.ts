@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { EvolutionError, listarGrupos } from '@/lib/whatsapp/evolution';
 import { normalizarDestino } from '@/lib/whatsapp/jid';
 import type { Connection } from '@/lib/types';
+import { instanciaDe, SEM_INSTANCIA } from '@/lib/whatsapp/conexao';
 
 export const dynamic = 'force-dynamic';
 // A Evolution pode demorar para varrer dezenas de grupos.
@@ -29,6 +30,9 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (!data) return NextResponse.json({ error: 'Conexão não encontrada.' }, { status: 404 });
   const conexao = data as Connection;
 
+  const instancia = instanciaDe(conexao);
+  if (!instancia) return NextResponse.json({ error: SEM_INSTANCIA }, { status: 409 });
+
   if (conexao.status !== 'conectada') {
     return NextResponse.json(
       { error: 'Conecte o número antes de sincronizar os grupos.' },
@@ -38,7 +42,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   let grupos;
   try {
-    grupos = await listarGrupos(conexao.instance_name);
+    grupos = await listarGrupos(instancia);
   } catch (e) {
     const erro = e instanceof EvolutionError ? e : new EvolutionError(String(e));
     await supabase

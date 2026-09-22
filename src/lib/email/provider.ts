@@ -29,11 +29,20 @@ export interface ResultadoEmail {
 export class EmailError extends Error {
   readonly permanente: boolean;
   readonly status: number;
-  constructor(mensagem: string, permanente = false, status = 0) {
+  /**
+   * Quanto o provedor pediu para esperar. Vem do cabeçalho `Retry-After` no 429.
+   *
+   * Existe porque o 429 já queimou uma fila inteira: sem respeitar a pausa, as três
+   * tentativas de cada destinatário aconteciam em segundos, todas levavam 429, e a
+   * campanha virava `falha` em bloco — por um limite que teria passado em meio minuto.
+   */
+  readonly esperarMs: number;
+  constructor(mensagem: string, permanente = false, status = 0, esperarMs = 0) {
     super(mensagem);
     this.name = 'EmailError';
     this.permanente = permanente;
     this.status = status;
+    this.esperarMs = esperarMs;
   }
 }
 
@@ -116,10 +125,16 @@ async function enviarPorResend(msg: EmailParaEnviar): Promise<ResultadoEmail> {
     // 4xx (menos 429) é pedido errado: domínio não verificado, e-mail inválido.
     // Repetir não conserta — vira falha definitiva do destinatário.
     const permanente = res.status >= 400 && res.status < 500 && res.status !== 429;
+    // O Resend manda `Retry-After` em segundos no 429. Quando não manda, 5 s é o
+    // suficiente para o balde de tokens dele encher de novo (o limite é por segundo).
+    const retryAfter = Number(res.headers.get('retry-after') ?? 0);
+    const esperarMs =
+      res.status === 429 ? (Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 5_000) : 0;
     throw new EmailError(
       `Resend ${res.status}: ${corpo.message ?? corpo.name ?? 'erro sem detalhe'}`,
       permanente,
       res.status,
+      esperarMs,
     );
   }
   return { messageId: corpo.id ?? null, provedor: 'resend' };

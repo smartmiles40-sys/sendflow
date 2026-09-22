@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { evolutionConfigurada } from '@/lib/whatsapp/evolution';
+import { cloudConfigurada } from '@/lib/whatsapp/cloud';
 import type { Connection } from '@/lib/types';
 import { ConexoesClient } from './ConexoesClient';
 
@@ -31,6 +32,7 @@ export default async function ConexoesPage() {
       initial={(data ?? []) as Connection[]}
       gruposPorConexao={porConexao}
       configurada={evolutionConfigurada()}
+      oficialConfigurada={cloudConfigurada()}
     />
   );
 }

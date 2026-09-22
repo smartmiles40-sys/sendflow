@@ -90,6 +90,15 @@ export interface Campaign {
   list_ids: string[] | null;
   /** Número que dispara. Nulo = o motor usa a primeira conexão conectada. */
   connection_id: string | null;
+  /** Template aprovado na Meta. Obrigatório quando `alvo = 'contatos'`. */
+  template_nome?: string | null;
+  template_idioma?: string | null;
+  /** Posição da Meta → texto, ainda com os marcadores `{{primeiro_nome}}` do sistema. */
+  template_variaveis?: Record<string, string> | null;
+  template_cabecalho_url?: string | null;
+  /** A fila desta campanha terminou de ser montada? Ver 0019. */
+  fanout_completo?: boolean;
+  fanout_cursor?: string | null;
   enviar_em: string | null;
   status: CampaignStatus;
   /** Preenchido quando a campanha foi materializada por uma recorrência semanal. */
@@ -124,11 +133,29 @@ export interface Recorrencia {
 
 export type ConnectionStatus = 'desconectada' | 'conectando' | 'conectada' | 'erro';
 
+/**
+ * Os dois conectores. Não são intercambiáveis, e a diferença é funcional:
+ *   • `evolution` — chip por QR Code. É o ÚNICO que envia para GRUPO, e o único que
+ *     manda texto livre para quem nunca escreveu. Em compensação tem teto de ~500/dia.
+ *   • `cloud` — API oficial da Meta. É o único que aguenta disparo em massa 1-a-1,
+ *     com template aprovado. Não envia para grupo.
+ * A regra de qual campanha usa qual está na 0019, em trigger, e em `validarCanal()`.
+ */
+export type ConnectionProvider = 'evolution' | 'cloud';
+
 export interface Connection {
   id: string;
   nome: string;
-  provider: 'evolution';
-  instance_name: string;
+  provider: ConnectionProvider;
+  /** Instância na Evolution. Nulo nas conexões da API oficial. */
+  instance_name: string | null;
+  /** Identificador do número na Meta. Nulo nas conexões da Evolution. */
+  phone_number_id?: string | null;
+  waba_id?: string | null;
+  /** Ritmo da Cloud API, em mensagens por segundo. Não se aplica à Evolution. */
+  msgs_por_segundo?: number;
+  /** Termômetro da Meta: quando cai para RED, o teto diário despenca. */
+  qualidade?: 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN' | null;
   numero: string | null;
   profile_name: string | null;
   profile_pic_url: string | null;
@@ -140,6 +167,33 @@ export interface Connection {
   proximo_envio_em: string | null;
   ultima_sincronizacao: string | null;
   ultimo_erro: string | null;
+  criado_em: string;
+  atualizado_em: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────
+// Templates da API oficial (Meta)
+// ─────────────────────────────────────────────────────────────────────────────────
+
+export type TemplateStatus = 'APPROVED' | 'PENDING' | 'REJECTED' | 'PAUSED' | 'DISABLED' | 'IN_APPEAL';
+
+export interface WhatsAppTemplate {
+  id: string;
+  connection_id: string;
+  nome: string;
+  idioma: string;
+  categoria: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+  status: TemplateStatus;
+  /** Texto do corpo com os marcadores da Meta: `Oi {{1}}, a turma do {{2}} abriu.` */
+  corpo: string;
+  cabecalho_tipo: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | null;
+  cabecalho_texto: string | null;
+  rodape: string | null;
+  botoes: unknown[] | null;
+  variaveis_corpo: number;
+  variaveis_cabecalho: number;
+  meta_id: string | null;
+  sincronizado_em: string | null;
   criado_em: string;
   atualizado_em: string;
 }
@@ -163,6 +217,10 @@ export interface CampaignRecipient {
   tentativas: number;
   provider_message_id: string | null;
   erro: string | null;
+  /** Código cru do erro da Meta (131026, 132001…). Sem ele, "falha" é adivinhação. */
+  codigo_erro?: string | null;
+  /** Variáveis do template já resolvidas para esta pessoa, no fan-out. */
+  variaveis?: Record<string, string> | null;
   enviado_em: string | null;
   entregue_em: string | null;
   lido_em: string | null;
@@ -190,6 +248,8 @@ export interface Contact {
   origem: string | null;
   campos: Record<string, string>;
   descadastrado_em: string | null;
+  /** Quando a pessoa pediu para sair do WhatsApp (respondeu "PARAR"). */
+  optout_whatsapp_em?: string | null;
   criado_em: string;
   atualizado_em: string;
 }

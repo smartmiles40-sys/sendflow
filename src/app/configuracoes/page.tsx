@@ -1,6 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { provedorAtivo } from '@/lib/email/provider';
 import { evolutionConfigurada } from '@/lib/whatsapp/evolution';
+import { cloudConfigurada } from '@/lib/whatsapp/cloud';
 import { urlPublica, urlPublicaEstavel } from '@/lib/url';
 import { loginExigido, segredoConfigurado } from '@/lib/auth';
 import { ConfiguracoesClient } from './ConfiguracoesClient';
@@ -18,6 +19,7 @@ export default async function ConfiguracoesPage() {
    * seria o diagnóstico exigindo aquilo que ele deveria diagnosticar.
    */
   let porChave: Record<string, Record<string, string>> = {};
+  // A janela de horário e o vigia moram em `app_settings.envio` (ver 0011 e 0019).
   let banco = true;
   try {
     const supabase = createServerClient();
@@ -39,11 +41,19 @@ export default async function ConfiguracoesPage() {
         rodape_endereco: porChave.email_remetente?.rodape_endereco ?? '',
         rodape_texto: porChave.email_remetente?.rodape_texto ?? '',
       }}
+      envio={{
+        janela_inicio: porChave.envio?.janela_inicio ?? '08:00',
+        janela_fim: porChave.envio?.janela_fim ?? '21:00',
+        respeitar_janela: Boolean(porChave.envio?.respeitar_janela),
+        lote_whatsapp: Number(porChave.envio?.lote_whatsapp ?? 200),
+        alerta_email: porChave.envio?.alerta_email ?? '',
+      }}
       ambiente={{
         banco,
         url_publica: urlPublica(),
         url_estavel: urlPublicaEstavel(),
         evolution: evolutionConfigurada(),
+        oficial: cloudConfigurada(),
         email: provedorAtivo(),
         login: loginExigido(),
         auth_secret: segredoConfigurado(),

@@ -17,6 +17,11 @@ export interface CampaignRow {
   alvo: 'grupos' | 'contatos';
   list_ids: string[] | null;
   connection_id: string | null;
+  /** Template aprovado na Meta. Só no disparo em massa (`alvo = 'contatos'`). */
+  template_nome: string | null;
+  template_idioma: string | null;
+  template_variaveis: Record<string, string> | null;
+  template_cabecalho_url: string | null;
   enviar_em: string | null;
   status: CampaignStatus;
 }
@@ -32,6 +37,10 @@ export interface AlvoCampanha {
   alvo?: 'grupos' | 'contatos';
   listIds?: string[] | null;
   connectionId?: string | null;
+  templateNome?: string | null;
+  templateIdioma?: string | null;
+  templateVariaveis?: Record<string, string> | null;
+  templateCabecalhoUrl?: string | null;
 }
 
 export function buildCampaignRow(
@@ -60,6 +69,13 @@ export function buildCampaignRow(
     alvo: paraContatos ? 'contatos' : 'grupos',
     list_ids: paraContatos && alvo.listIds?.length ? alvo.listIds : null,
     connection_id: alvo.connectionId ?? null,
+    // Template é do disparo em massa. Numa campanha de grupo ele fica nulo, e não
+    // "guardado por via das dúvidas": o trigger da 0019 lê estes campos para decidir
+    // se a campanha pode ser agendada.
+    template_nome: paraContatos ? (alvo.templateNome?.trim() || null) : null,
+    template_idioma: paraContatos ? (alvo.templateIdioma?.trim() || 'pt_BR') : null,
+    template_variaveis: paraContatos ? (alvo.templateVariaveis ?? null) : null,
+    template_cabecalho_url: paraContatos ? (alvo.templateCabecalhoUrl ?? null) : null,
     enviar_em,
     status,
   };

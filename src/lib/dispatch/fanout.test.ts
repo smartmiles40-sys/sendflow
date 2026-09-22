@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gruposDaCampanha, montarDestinatarios, resumirFila } from './fanout';
+import { gruposDaCampanha, montarDestinatarios, montarLinhasDeContatos, resumirFila } from './fanout';
 import type { Audience, Campaign, Contact, Group } from '../types';
 
 function grupo(p: Partial<Group>): Group {
@@ -200,5 +200,81 @@ describe('resumirFila', () => {
       { status: 'pendente' },
     ]);
     expect(r).toEqual({ total: 5, enviados: 3, falhas: 1, pendentes: 1 });
+  });
+});
+
+
+describe('montarLinhasDeContatos — o fan-out em fatias do disparo em massa', () => {
+  const massa = campanha({
+    alvo: 'contatos',
+    connection_id: 'cloud-1',
+    template_nome: 'live_japao',
+    template_variaveis: { '1': '{{primeiro_nome}}', '2': 'Japão & China' },
+  });
+
+  it('resolve as variáveis do template para CADA pessoa', () => {
+    const { linhas } = montarLinhasDeContatos(
+      massa,
+      [contato({ id: 'a', nome: 'Maria Silva', telefone: '11999998888' })],
+      'cloud-1',
+      { variaveisDoTemplate: 2 },
+    );
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0].variaveis).toEqual({ '1': 'Maria', '2': 'Japão & China' });
+    expect(linhas[0].destino).toBe('5511999998888');
+    expect(linhas[0].connection_id).toBe('cloud-1');
+    expect(linhas[0].destino_tipo).toBe('contato');
+  });
+
+  it('deixa de fora quem pediu para sair — insistir derruba a qualidade do número', () => {
+    const { linhas, ignorados } = montarLinhasDeContatos(
+      massa,
+      [
+        contato({ id: 'a', telefone: '11999998888' }),
+        contato({ id: 'b', telefone: '11988887777', status_whatsapp: 'descadastrado' }),
+      ],
+      'cloud-1',
+      { variaveisDoTemplate: 2 },
+    );
+    expect(linhas).toHaveLength(1);
+    expect(ignorados).toBe(1);
+  });
+
+  it('a mesma pessoa em duas listas entra uma vez só, mesmo entre páginas', () => {
+    const vistos = new Set<string>();
+    const pagina1 = montarLinhasDeContatos(massa, [contato({ id: 'a', telefone: '11999998888' })], 'c', {
+      variaveisDoTemplate: 2,
+      vistos,
+    });
+    const pagina2 = montarLinhasDeContatos(massa, [contato({ id: 'b', telefone: '11999998888' })], 'c', {
+      variaveisDoTemplate: 2,
+      vistos,
+    });
+    expect(pagina1.linhas).toHaveLength(1);
+    expect(pagina2.linhas).toHaveLength(0);
+    expect(pagina2.ignorados).toBe(1);
+  });
+
+  it('telefone inválido é ignorado em vez de virar linha que falha na Meta', () => {
+    const { linhas, ignorados } = montarLinhasDeContatos(
+      massa,
+      [contato({ id: 'a', telefone: '123' })],
+      'cloud-1',
+    );
+    expect(linhas).toHaveLength(0);
+    expect(ignorados).toBe(1);
+  });
+
+  it('campanha sem template não gera variáveis', () => {
+    const semTemplate = campanha({ alvo: 'contatos', template_variaveis: null });
+    const { linhas } = montarLinhasDeContatos(semTemplate, [contato({ id: 'a' })], 'c');
+    expect(linhas[0].variaveis).toBeNull();
+  });
+
+  it('respeita a quantidade de variáveis que o template pede', () => {
+    const { linhas } = montarLinhasDeContatos(massa, [contato({ id: 'a' })], 'c', {
+      variaveisDoTemplate: 1,
+    });
+    expect(Object.keys(linhas[0].variaveis ?? {})).toEqual(['1']);
   });
 });

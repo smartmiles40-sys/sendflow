@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { temMidia, type Audience, type Campaign, type CampaignType, type TipoComMidia, type Connection, type Group, type Lista } from '@/lib/types';
+import { temMidia, type Audience, type Campaign, type CampaignType, type TipoComMidia, type Connection, type Group, type Lista, type WhatsAppTemplate } from '@/lib/types';
 import { WhatsAppPreview } from '@/components/WhatsAppPreview';
 import { MultiDatePicker, type DateEntry } from '@/components/MultiDatePicker';
 import {
@@ -13,6 +13,7 @@ import {
   type AudienceMode,
 } from '@/components/AudiencePicker';
 import { Field, SegButton, Switch, inputCls } from '@/components/ui';
+import { TemplatePicker } from '@/components/TemplatePicker';
 import { validateCampaign, type CampaignDraft } from '@/lib/validation';
 import { estimateDuration, formatDuration } from '@/lib/message';
 import { uploadMedia } from '@/lib/upload-client';
@@ -129,12 +130,29 @@ function NovaCampanha() {
   // alcançado pelo número que participa dele.
   const [conexoes, setConexoes] = useState<Connection[]>([]);
   const [connectionId, setConnectionId] = useState<string>('');
+  // Disparo em massa: o conteúdo é um template aprovado pela Meta, não o texto digitado.
+  const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [carregandoTemplates, setCarregandoTemplates] = useState(false);
+  const [templateNome, setTemplateNome] = useState('');
+  const [templateIdioma, setTemplateIdioma] = useState('pt_BR');
+  const [templateVars, setTemplateVars] = useState<Record<string, string>>({});
+  const [templateCabecalhoUrl, setTemplateCabecalhoUrl] = useState('');
   const [audienceMode, setAudienceMode] = useState<AudienceMode>('todos');
   const [audiences, setAudiences] = useState<Audience[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedAudienceId, setSelectedAudienceId] = useState<string | null>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [groupQuery, setGroupQuery] = useState('');
+
+  // A REGRA do sistema, materializada na tela: disparo em massa para contatos só sai
+  // pela API oficial; grupo só sai por chip. Em vez de deixar escolher e recusar
+  // depois, a lista de números já vem filtrada pelo alvo.
+  const conexoesDoAlvo = useMemo(
+    () => conexoes.filter((c) => (alvo === 'contatos' ? c.provider === 'cloud' : c.provider !== 'cloud')),
+    [conexoes, alvo],
+  );
+  const conexaoAtual = conexoes.find((c) => c.id === connectionId) ?? null;
+  const emMassa = alvo === 'contatos';
 
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(editing);
@@ -171,6 +189,72 @@ function NovaCampanha() {
       alive = false;
     };
   }, []);
+
+  /**
+   * Os templates pertencem ao NÚMERO, não ao sistema — então eles são buscados quando
+   * o número da API oficial é escolhido, e não no carregamento da tela.
+   *
+   * A cópia local vem do nosso banco (sincronizada em Conexões), não da Meta: uma ida
+   * à Graph API a cada troca de número queimaria o limite de chamadas à toa.
+   *
+   * Nada de setState no corpo do efeito: quem limpa e quem acende o "carregando" são
+   * os eventos abaixo (`trocarAlvo`, `escolherConexao`), que é onde a decisão de fato
+   * acontece. O efeito só sincroniza com o servidor.
+   */
+  useEffect(() => {
+    if (alvo !== 'contatos' || !connectionId) return;
+    let alive = true;
+    fetch(`/api/connections/${connectionId}/templates`)
+      .then((r) => r.json())
+      .then((body: { templates?: WhatsAppTemplate[] }) => {
+        if (alive) setTemplates(body.templates ?? []);
+      })
+      .catch(() => {
+        if (alive) setTemplates([]);
+      })
+      .finally(() => {
+        if (alive) setCarregandoTemplates(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [alvo, connectionId]);
+
+  /** Zera o que só vale para o disparo em massa. */
+  function limparTemplate() {
+    setTemplates([]);
+    setTemplateNome('');
+    setTemplateVars({});
+    setTemplateCabecalhoUrl('');
+    setCarregandoTemplates(false);
+  }
+
+  /**
+   * Trocar de alvo invalida o número escolhido: um chip não faz disparo em massa e um
+   * número oficial não manda em grupo. Limpar aqui — no evento, não num efeito — evita
+   * o estado impossível de ter "Massa 1 a 1" marcado com o chip do MKT selecionado.
+   */
+  function trocarAlvo(novo: 'grupos' | 'contatos') {
+    setAlvo(novo);
+    clearError('audience');
+    clearError('connection_id');
+    limparTemplate();
+    const c = conexoes.find((x) => x.id === connectionId);
+    const serve = c ? (novo === 'contatos' ? c.provider === 'cloud' : c.provider !== 'cloud') : true;
+    if (!serve) setConnectionId('');
+  }
+
+  /** Escolher o número recarrega os templates dele, que são outros. */
+  function escolherConexao(id: string) {
+    setConnectionId(id);
+    clearError('connection_id');
+    if (alvo === 'contatos') {
+      setTemplates([]);
+      setTemplateNome('');
+      setTemplateVars({});
+      setCarregandoTemplates(Boolean(id));
+    }
+  }
 
   // Edit mode: load the campaign and prefill every field.
   useEffect(() => {
@@ -209,6 +293,10 @@ function NovaCampanha() {
         }
 
         setConnectionId(c.connection_id ?? '');
+        setTemplateNome(c.template_nome ?? '');
+        setTemplateIdioma(c.template_idioma ?? 'pt_BR');
+        setTemplateVars((c.template_variaveis ?? {}) as Record<string, string>);
+        setTemplateCabecalhoUrl(c.template_cabecalho_url ?? '');
         setAlvo(c.alvo === 'contatos' ? 'contatos' : 'grupos');
         setListIds(c.list_ids ?? []);
 
@@ -305,22 +393,29 @@ function NovaCampanha() {
 
   async function submit(asDraft: boolean) {
     setSubmitError(null);
+
+    // No disparo em massa o conteúdo é o template, não o que foi digitado. Guardar o
+    // corpo dele em `mensagem` não é enfeite: é o que faz a lista de campanhas e o
+    // detalhe mostrarem o texto real em vez de um campo vazio.
+    const templateEscolhido = templates.find(
+      (t) => t.nome === templateNome && t.idioma === templateIdioma,
+    );
     const draft: CampaignDraft = {
       nome,
-      tipo,
+      tipo: emMassa ? 'texto' : tipo,
       categoria,
-      mensagem,
-      midia_url: midiaUrl,
-      mencionar_todos: mencionar,
-          enquete_opcoes: enqueteOpcoes,
-          enquete_multipla: enqueteMultipla,
+      mensagem: emMassa ? (templateEscolhido?.corpo ?? templateNome) : mensagem,
+      midia_url: emMassa ? null : midiaUrl,
+      mencionar_todos: emMassa ? false : mencionar,
+      enquete_opcoes: emMassa ? null : enqueteOpcoes,
+      enquete_multipla: emMassa ? false : enqueteMultipla,
       agendar,
       enviar_em: agendar && enviarEm ? new Date(enviarEm).toISOString() : null,
     };
     // Rascunho skips validation; a real submit (create or edit) must be complete.
     if (!asDraft) {
       const map = Object.fromEntries(
-        validateCampaign(draft, new Date()).map((e) => [e.field, e.message]),
+        validateCampaign(draft, new Date(), { alvo }).map((e) => [e.field, e.message]),
       );
       // "Público salvo" needs an actual selection — never silently fall back to "todos".
       if (alvo === 'grupos' && audienceMode === 'salvo' && !selectedAudienceId) {
@@ -328,6 +423,31 @@ function NovaCampanha() {
       }
       if (alvo === 'contatos' && !listIds.length) {
         map.audience = 'Escolha ao menos uma lista de contatos.';
+      }
+      // A REGRA. O servidor e o banco também barram, mas o erro precisa nascer aqui
+      // para chegar como um campo destacado e não como exceção do Postgres.
+      if (alvo === 'contatos') {
+        if (!connectionId) {
+          map.connection_id =
+            'Escolha o número da API oficial. Disparo em massa para contatos não sai por chip.';
+        }
+        if (!templateNome) {
+          map.template_nome = 'Escolha um template aprovado pela Meta.';
+        } else {
+          const t = templates.find((x) => x.nome === templateNome && x.idioma === templateIdioma);
+          const faltando = (t?.variaveis_corpo ?? 0) - Object.keys(templateVars).filter((k) => {
+            const pos = Number(k);
+            return pos >= 1 && pos <= (t?.variaveis_corpo ?? 0) && String(templateVars[k] ?? '').trim();
+          }).length;
+          if (faltando > 0) {
+            map.template_variaveis = `Preencha todas as ${t?.variaveis_corpo} variáveis do template.`;
+          }
+          const precisaMidia =
+            t?.cabecalho_tipo === 'IMAGE' || t?.cabecalho_tipo === 'VIDEO' || t?.cabecalho_tipo === 'DOCUMENT';
+          if (precisaMidia && !templateCabecalhoUrl.trim()) {
+            map.template_cabecalho_url = 'Anexe o arquivo do cabeçalho deste template.';
+          }
+        }
       }
       if (Object.keys(map).length) {
         setErrors(map);
@@ -341,6 +461,11 @@ function NovaCampanha() {
       alvo,
       list_ids: alvo === 'contatos' ? listIds : null,
       connection_id: connectionId || null,
+      // Template só existe no disparo em massa; em campanha de grupo vai nulo.
+      template_nome: alvo === 'contatos' ? templateNome || null : null,
+      template_idioma: alvo === 'contatos' ? templateIdioma : null,
+      template_variaveis: alvo === 'contatos' ? templateVars : null,
+      template_cabecalho_url: alvo === 'contatos' ? templateCabecalhoUrl || null : null,
     };
     try {
       if (editing) {
@@ -505,6 +630,10 @@ function NovaCampanha() {
               alvo,
               list_ids: alvo === 'contatos' ? listIds : null,
               connection_id: connectionId || null,
+              template_nome: alvo === 'contatos' ? templateNome || null : null,
+              template_idioma: alvo === 'contatos' ? templateIdioma : null,
+              template_variaveis: alvo === 'contatos' ? templateVars : null,
+              template_cabecalho_url: alvo === 'contatos' ? templateCabecalhoUrl || null : null,
             }),
           });
           if (!res.ok) failures++;
@@ -575,17 +704,21 @@ function NovaCampanha() {
             </div>
           </Field>
 
-          <Field label="Tipo de conteúdo">
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-              {tipos.map((t) => (
-                <SegButton key={t.key} on={tipo === t.key} onClick={() => pickTipo(t.key)}>
-                  {t.label}
-                </SegButton>
-              ))}
-            </div>
-          </Field>
+          {/* Conteúdo escrito à mão: só na campanha de grupo. No disparo em massa quem
+              manda é o template aprovado, e estes campos nem seriam enviados. */}
+          {!emMassa && (
+            <Field label="Tipo de conteúdo">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                {tipos.map((t) => (
+                  <SegButton key={t.key} on={tipo === t.key} onClick={() => pickTipo(t.key)}>
+                    {t.label}
+                  </SegButton>
+                ))}
+              </div>
+            </Field>
+          )}
 
-          {temMidia(tipo) && (
+          {!emMassa && temMidia(tipo) && (
             <Field label="Mídia" error={errors.midia_url}>
               <input
                 ref={fileRef}
@@ -631,6 +764,7 @@ function NovaCampanha() {
             </Field>
           )}
 
+          {!emMassa && (
           <Field
             label={tipo === 'enquete' ? 'Pergunta' : 'Mensagem'}
             hint={tipo === 'enquete' ? '· aparece em cima das opções' : '· use {{data}}, {{tema}} se quiser'}
@@ -647,8 +781,9 @@ function NovaCampanha() {
               className={`${inputCls} ${tipo === 'enquete' ? 'min-h-[70px]' : 'min-h-[120px]'} resize-y leading-relaxed`}
             />
           </Field>
+          )}
 
-          {tipo === 'enquete' && (
+          {!emMassa && tipo === 'enquete' && (
             <EnqueteEditor
               opcoes={enqueteOpcoes}
               onOpcoes={(o) => {
@@ -661,38 +796,34 @@ function NovaCampanha() {
             />
           )}
 
-          <Field>
-            <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-surface2 px-3.5 py-3">
-              <span className="text-sm">
-                <span className="font-semibold">Mencionar todos</span>
-                <span className="mt-0.5 block font-normal text-muted">
-                  marca @todos os participantes de cada grupo
+          {!emMassa && (
+            <Field>
+              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-surface2 px-3.5 py-3">
+                <span className="text-sm">
+                  <span className="font-semibold">Mencionar todos</span>
+                  <span className="mt-0.5 block font-normal text-muted">
+                    marca @todos os participantes de cada grupo
+                  </span>
                 </span>
-              </span>
-              <Switch checked={mencionar} onChange={setMencionar} label="Mencionar todos" />
-            </label>
-          </Field>
+                <Switch checked={mencionar} onChange={setMencionar} label="Mencionar todos" />
+              </label>
+            </Field>
+          )}
 
           {/* ALVO: grupos de WhatsApp ou contatos de uma lista */}
           <Field label="Para quem vai">
             <div className="mb-4 flex gap-2.5">
               <SegButton
                 on={alvo === 'grupos'}
-                onClick={() => {
-                  setAlvo('grupos');
-                  clearError('audience');
-                }}
+                onClick={() => trocarAlvo('grupos')}
               >
-                Grupos
+                Grupos · por chip
               </SegButton>
               <SegButton
                 on={alvo === 'contatos'}
-                onClick={() => {
-                  setAlvo('contatos');
-                  clearError('audience');
-                }}
+                onClick={() => trocarAlvo('contatos')}
               >
-                Contatos (1 a 1)
+                Massa 1 a 1 · API oficial
               </SegButton>
             </div>
 
@@ -737,9 +868,10 @@ function NovaCampanha() {
                     </div>
                     <p className="mt-2.5 text-xs leading-relaxed text-muted">
                       Vai uma mensagem individual para o WhatsApp de cada contato com telefone
-                      válido. Quem está descadastrado fica de fora, e a mesma pessoa em duas listas
-                      recebe uma vez só. Nesse modo o <b className="text-ink">@todos</b> não tem
-                      efeito — ele só existe em grupo.
+                      válido, pela <b className="text-ink">API oficial da Meta</b> — é a regra do
+                      sistema para disparo em massa, e é o que permite milhares por dia sem derrubar
+                      o número. Quem está descadastrado ou respondeu <b className="text-ink">PARAR</b>{' '}
+                      fica de fora, e a mesma pessoa em duas listas recebe uma vez só.
                     </p>
                   </>
                 )}
@@ -770,29 +902,85 @@ function NovaCampanha() {
             />
           )}
 
-          {/* CONEXÃO: por qual número sai */}
-          {conexoes.length > 0 && (
-            <Field label="Enviar pelo número" hint="· deixe no automático se não tiver motivo para fixar">
-              <select
-                value={connectionId}
-                onChange={(e) => setConnectionId(e.target.value)}
-                className={inputCls}
-              >
-                <option value="">Automático</option>
-                {conexoes.map((c) => (
-                  <option key={c.id} value={c.id} disabled={c.status !== 'conectada'}>
-                    {c.nome}
-                    {c.numero ? ` · ${c.numero}` : ''}
-                    {c.status !== 'conectada' ? ' (desconectado)' : ''}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-2 text-xs leading-relaxed text-muted">
-                No automático, cada grupo é disparado pelo número que participa dele — que é o único
-                que consegue. Fixar um número só faz sentido para campanha a contatos, quando você
-                quer que a resposta caia num aparelho específico.
-              </p>
+          {/* CONEXÃO: por qual número sai. A lista já vem filtrada pela regra do canal. */}
+          {(conexoesDoAlvo.length > 0 || emMassa) && (
+            <Field
+              label={emMassa ? 'Disparar pelo número oficial' : 'Enviar pelo número'}
+              hint={emMassa ? '· obrigatório' : '· deixe no automático se não tiver motivo para fixar'}
+              error={errors.connection_id}
+            >
+              {emMassa && conexoesDoAlvo.length === 0 ? (
+                <p className="rounded-xl border border-orange/25 bg-orange/[0.07] px-3.5 py-3 text-sm leading-relaxed text-[#ffb183]">
+                  Nenhum número da <b>API oficial</b> cadastrado. Disparo em massa para contatos não
+                  sai por chip — mandar centenas de primeiras mensagens por um número lido em QR Code
+                  é o que gera o bloqueio de 24 h da Meta.{' '}
+                  <Link href="/conexoes" className="font-semibold underline underline-offset-2">
+                    Cadastre um número oficial em Conexões
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <>
+                  <select
+                    value={connectionId}
+                    onChange={(e) => escolherConexao(e.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="">{emMassa ? 'Escolha o número…' : 'Automático'}</option>
+                    {conexoesDoAlvo.map((c) => (
+                      <option key={c.id} value={c.id} disabled={c.status !== 'conectada'}>
+                        {c.nome}
+                        {c.numero ? ` · ${c.numero}` : ''}
+                        {c.status !== 'conectada' ? ' (indisponível)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs leading-relaxed text-muted">
+                    {emMassa ? (
+                      <>
+                        Só aparecem números da API oficial. É a regra do sistema: disparo em massa
+                        para contatos sai por API, sempre — é ela que aguenta volume sem derrubar o
+                        número.
+                      </>
+                    ) : (
+                      <>
+                        Só aparecem números conectados por QR Code: a API oficial da Meta não envia
+                        para grupos. No automático, cada grupo é disparado pelo número que participa
+                        dele — que é o único que consegue.
+                      </>
+                    )}
+                  </p>
+                </>
+              )}
             </Field>
+          )}
+
+          {/* TEMPLATE: o conteúdo do disparo em massa */}
+          {emMassa && (
+            <TemplatePicker
+              templates={templates}
+              carregando={carregandoTemplates}
+              templateNome={templateNome}
+              templateIdioma={templateIdioma}
+              variaveis={templateVars}
+              cabecalhoUrl={templateCabecalhoUrl}
+              conexaoEscolhida={Boolean(conexaoAtual)}
+              onEscolher={(nome, idioma) => {
+                setTemplateNome(nome);
+                setTemplateIdioma(idioma);
+                clearError('template_nome');
+                clearError('template_variaveis');
+              }}
+              onVariaveis={(v) => {
+                setTemplateVars(v);
+                clearError('template_variaveis');
+              }}
+              onCabecalhoUrl={(u) => {
+                setTemplateCabecalhoUrl(u);
+                clearError('template_cabecalho_url');
+              }}
+              erro={errors.template_nome ?? errors.template_variaveis ?? errors.template_cabecalho_url}
+            />
           )}
 
           <Field label="Agendamento" error={errors.enviar_em}>
@@ -911,17 +1099,21 @@ function NovaCampanha() {
           </div>
         </div>
 
-        {/* PREVIEW */}
-        <div className="sticky top-[26px]">
-          <WhatsAppPreview
-            tipo={tipo}
-            mensagem={mensagem}
-            midiaUrl={midiaUrl}
-            mencionarTodos={mencionar}
-            enqueteOpcoes={enqueteOpcoes}
-            enqueteMultipla={enqueteMultipla}
-          />
-        </div>
+        {/* PREVIEW — no disparo em massa a prévia que vale é a do template, dentro do
+            próprio seletor: ela mostra as variáveis já resolvidas para um contato de
+            exemplo, que é o que a pessoa realmente vai receber. */}
+        {!emMassa && (
+          <div className="sticky top-[26px]">
+            <WhatsAppPreview
+              tipo={tipo}
+              mensagem={mensagem}
+              midiaUrl={midiaUrl}
+              mencionarTodos={mencionar}
+              enqueteOpcoes={enqueteOpcoes}
+              enqueteMultipla={enqueteMultipla}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

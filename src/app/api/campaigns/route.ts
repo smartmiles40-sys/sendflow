@@ -4,6 +4,7 @@ import { validateCampaign, type CampaignDraft } from '@/lib/validation';
 import { buildCampaignRow } from '@/lib/campaign-row';
 import { readJson } from '@/lib/http';
 import { dispararTick } from '@/lib/dispatch/gatilho';
+import { lerVariaveis, validarCanalNoServidor } from '@/lib/whatsapp/canal-servidor';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,10 @@ export async function POST(req: Request) {
     alvo?: unknown;
     list_ids?: unknown;
     connection_id?: unknown;
+    template_nome?: unknown;
+    template_idioma?: unknown;
+    template_variaveis?: unknown;
+    template_cabecalho_url?: unknown;
   }>(req);
   if (!parsed.ok) return parsed.res;
   const body = parsed.data;
@@ -40,6 +45,11 @@ export async function POST(req: Request) {
   const asDraft = Boolean(body.asDraft);
   const alvo = body.alvo === 'contatos' ? ('contatos' as const) : ('grupos' as const);
   const listIds = Array.isArray(body.list_ids) ? (body.list_ids as string[]) : null;
+  const connectionId = (body.connection_id as string | null) ?? null;
+  const templateNome = String(body.template_nome ?? '').trim() || null;
+  const templateIdioma = String(body.template_idioma ?? '').trim() || 'pt_BR';
+  const templateVariaveis = lerVariaveis(body.template_variaveis);
+  const templateCabecalhoUrl = String(body.template_cabecalho_url ?? '').trim() || null;
 
   if (!asDraft && alvo === 'contatos' && !listIds?.length) {
     return NextResponse.json(
@@ -48,9 +58,24 @@ export async function POST(req: Request) {
     );
   }
 
+  const supabase = createServerClient();
+
   if (!asDraft) {
-    const errors = validateCampaign(draft, new Date());
+    const errors = validateCampaign(draft, new Date(), { alvo });
     if (errors.length) return NextResponse.json({ errors }, { status: 400 });
+
+    // A REGRA: disparo em massa para contatos só pela API oficial; grupo só por chip.
+    // O trigger da 0019 barra isso no banco de qualquer jeito — aqui o objetivo é que
+    // o erro chegue à tela como um campo destacado, e não como exceção do Postgres.
+    const problemas = await validarCanalNoServidor(supabase, {
+      alvo,
+      connectionId,
+      templateNome,
+      templateIdioma,
+      variaveis: templateVariaveis,
+      cabecalhoUrl: templateCabecalhoUrl,
+    });
+    if (problemas.length) return NextResponse.json({ errors: problemas }, { status: 400 });
   }
 
   const row = buildCampaignRow(
@@ -60,13 +85,16 @@ export async function POST(req: Request) {
       groupIds: Array.isArray(body.group_ids) ? (body.group_ids as string[]) : null,
       alvo,
       listIds,
-      connectionId: (body.connection_id as string | null) ?? null,
+      connectionId,
+      templateNome,
+      templateIdioma,
+      templateVariaveis,
+      templateCabecalhoUrl,
     },
     new Date(),
     { asDraft },
   );
 
-  const supabase = createServerClient();
   const { data, error } = await supabase.from('campaigns').insert(row).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

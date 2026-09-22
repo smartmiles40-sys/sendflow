@@ -4,18 +4,29 @@ Disparador de campanhas de **WhatsApp** e **e-mail marketing**, com KPIs de verd
 quantas mensagens foram entregues, quantas foram lidas, quem respondeu, quem abriu o
 e-mail, em qual link clicou e quem pediu para sair.
 
-Feito para uma equipe pequena operar sozinha: conecta o número por QR Code, puxa os
-grupos do próprio WhatsApp, importa os contatos de uma planilha e dispara — sem
-depender de fornecedor de API paga e sem editar fluxo em ferramenta externa.
+Feito para uma equipe pequena operar sozinha: cadastra o número, importa os contatos de
+uma planilha e dispara — sem editar fluxo em ferramenta externa.
+
+**A regra que organiza o sistema inteiro:** disparo em massa para contatos sai pela
+**API oficial da Meta**, sempre; campanha para **grupos** sai por **chip lido em QR Code**.
+Não é preferência — é o que cada uma consegue fazer. Ver [docs/API-OFICIAL.md](docs/API-OFICIAL.md).
 
 ---
 
 ## O que este sistema faz
 
-**WhatsApp**
-- Conecta **vários números** por QR Code (Evolution API), como no WhatsApp Web.
+**WhatsApp — disparo em massa (API oficial da Meta)**
+- Dezenas de milhares de mensagens 1 a 1 por campanha, com **template aprovado**.
+- Personalização por pessoa dentro do template (`{{primeiro_nome}}`, colunas do CSV).
+- Fila montada **em fatias** — 50 mil contatos não estouram a memória nem o tempo do tick.
+- **Opt-out de verdade:** quem responde "PARAR" é descadastrado e sai da fila em andamento.
+- Lê a **qualidade do número** na Meta e avisa por e-mail quando ela cai para vermelho.
+- Traduz os códigos de erro da Meta (131026, 132000, 131048…) para português.
+
+**WhatsApp — grupos (chip por QR Code, Evolution API)**
+- Conecta **vários números** por QR Code, como no WhatsApp Web.
 - Puxa a lista de grupos do próprio aparelho — acabou o "cole o ID do grupo".
-- Dispara para grupos ou para contatos um a um, com texto, imagem, vídeo ou PDF.
+- Texto, imagem, vídeo, PDF e enquete.
 - Espaça os envios com intervalo aleatório por número (anti-bloqueio), respeita um teto
   diário e distribui a carga entre os números conectados.
 - Agendamento pontual, sequências de aula e campanhas recorrentes semanais.

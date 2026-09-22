@@ -1,19 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { Field, inputCls } from '@/components/ui';
+import { Field, inputCls, Switch } from '@/components/ui';
 
 interface Ambiente {
   banco: boolean;
   url_publica: string;
   url_estavel: boolean;
   evolution: boolean;
+  oficial: boolean;
   email: string | null;
   login: boolean;
   auth_secret: boolean;
   cron_secret: boolean;
   webhook_secret: boolean;
   resend_webhook: boolean;
+}
+
+/** `app_settings.envio` — a janela de horário, o lote e o e-mail do vigia. */
+export interface Envio {
+  janela_inicio: string;
+  janela_fim: string;
+  respeitar_janela: boolean;
+  lote_whatsapp: number;
+  alerta_email: string;
 }
 
 interface Remetente {
@@ -26,32 +36,55 @@ interface Remetente {
 
 export function ConfiguracoesClient({
   remetente: inicial,
+  envio: envioInicial,
   ambiente,
 }: {
   remetente: Remetente;
+  envio: Envio;
   ambiente: Ambiente;
 }) {
   const [remetente, setRemetente] = useState(inicial);
+  const [envio, setEnvio] = useState(envioInicial);
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [salvandoEnvio, setSalvandoEnvio] = useState(false);
+  const [salvoEnvio, setSalvoEnvio] = useState(false);
+
+  async function gravar(chave: string, valor: unknown): Promise<boolean> {
+    const res = await fetch('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chave, valor }),
+    });
+    if (res.ok) return true;
+    setErro((await res.json().catch(() => ({}))).error ?? 'Não foi possível salvar.');
+    return false;
+  }
 
   async function salvar() {
     setSalvando(true);
     setSalvo(false);
     setErro(null);
     try {
-      const res = await fetch('/api/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chave: 'email_remetente', valor: remetente }),
-      });
-      if (res.ok) setSalvo(true);
-      else setErro((await res.json().catch(() => ({}))).error ?? 'Não foi possível salvar.');
+      if (await gravar('email_remetente', remetente)) setSalvo(true);
     } catch {
       setErro('Sem conexão com o servidor.');
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function salvarEnvio() {
+    setSalvandoEnvio(true);
+    setSalvoEnvio(false);
+    setErro(null);
+    try {
+      if (await gravar('envio', envio)) setSalvoEnvio(true);
+    } catch {
+      setErro('Sem conexão com o servidor.');
+    } finally {
+      setSalvandoEnvio(false);
     }
   }
 
@@ -143,6 +176,83 @@ export function ConfiguracoesClient({
         </div>
       </section>
 
+      <section className="mb-6 rounded-xl2 border border-border bg-surface p-5">
+        <h2 className="mb-1 text-[15px] font-semibold">Janela de envio e vigia</h2>
+        <p className="mb-5 text-xs leading-relaxed text-muted">
+          A janela vale para a HORA EM QUE A MENSAGEM CHEGA, não para o agendamento: a fila pode
+          crescer de madrugada, o que não pode é o celular de alguém apitar às 3 h por causa de uma
+          data digitada errado.
+        </p>
+
+        <Field>
+          <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border bg-surface2 px-3.5 py-3">
+            <span className="text-sm">
+              <span className="font-semibold">Respeitar a janela de horário</span>
+              <span className="mt-0.5 block font-normal text-muted">
+                fora dela o motor segura a fila em vez de enviar
+              </span>
+            </span>
+            <Switch
+              checked={envio.respeitar_janela}
+              onChange={(v) => setEnvio({ ...envio, respeitar_janela: v })}
+              label="Respeitar a janela de horário"
+            />
+          </label>
+        </Field>
+
+        <div className="mb-5 flex flex-wrap gap-4">
+          <label className="text-sm">
+            <span className="mb-[9px] block text-[13px] font-semibold">Começa às</span>
+            <input
+              type="time"
+              value={envio.janela_inicio}
+              onChange={(e) => setEnvio({ ...envio, janela_inicio: e.target.value })}
+              className={inputCls}
+              disabled={!envio.respeitar_janela}
+            />
+          </label>
+          <label className="text-sm">
+            <span className="mb-[9px] block text-[13px] font-semibold">Termina às</span>
+            <input
+              type="time"
+              value={envio.janela_fim}
+              onChange={(e) => setEnvio({ ...envio, janela_fim: e.target.value })}
+              className={inputCls}
+              disabled={!envio.respeitar_janela}
+            />
+          </label>
+        </div>
+
+        <Field
+          label="Avisar por e-mail quando o motor travar"
+          hint="· deixe em branco para desligar o vigia"
+        >
+          <input
+            type="email"
+            value={envio.alerta_email}
+            onChange={(e) => setEnvio({ ...envio, alerta_email: e.target.value.trim() })}
+            placeholder="voce@empresa.com.br"
+            className={inputCls}
+          />
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            Avisa quando um número cai, quando a Meta rebaixa a qualidade para vermelho, quando uma
+            campanha termina sem enviar nada e quando há fila parada. No máximo um aviso por motivo
+            a cada hora — um alerta que toca à toa é desligado em uma semana.
+          </p>
+        </Field>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => void salvarEnvio()}
+            disabled={salvandoEnvio || !ambiente.banco}
+            className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
+          >
+            {salvandoEnvio ? 'Salvando…' : 'Salvar janela e vigia'}
+          </button>
+          {salvoEnvio && <span className="text-sm text-[#D7F264]">✓ Salvo</span>}
+        </div>
+      </section>
+
       <section className="rounded-xl2 border border-border bg-surface p-5">
         <h2 className="mb-1 text-[15px] font-semibold">O motor de envio</h2>
         <p className="mb-4 text-xs leading-relaxed text-muted">
@@ -185,15 +295,23 @@ function Diagnostico({ ambiente }: { ambiente: Ambiente }) {
       titulo: 'Banco de dados (Supabase)',
       detalhe: ambiente.banco
         ? 'Conectado.'
-        : 'Não foi possível ler o banco. Confira NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY, e se as migrations de supabase/migrations/ já rodaram (da 0001 à 0012).',
+        : 'Não foi possível ler o banco. Confira NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY, e se as migrations de supabase/migrations/ já rodaram (da 0001 à 0019).',
+    },
+    {
+      ok: ambiente.oficial,
+      critico: true,
+      titulo: 'API oficial da Meta (disparo em massa)',
+      detalhe: ambiente.oficial
+        ? 'Configurada. Cadastre o número em Conexões e sincronize os templates.'
+        : 'Falta META_ACCESS_TOKEN (e META_APP_SECRET + META_WEBHOOK_VERIFY_TOKEN para os confirmados de entrega). Sem isso, não há disparo em massa para contatos.',
     },
     {
       ok: ambiente.evolution,
-      critico: true,
-      titulo: 'Evolution API (WhatsApp)',
+      critico: false,
+      titulo: 'Evolution API (grupos)',
       detalhe: ambiente.evolution
-        ? 'Configurada. Conecte os números na aba Conexões.'
-        : 'Faltam EVOLUTION_API_URL e EVOLUTION_API_KEY. Sem isso, nenhuma campanha de WhatsApp sai.',
+        ? 'Configurada. Conecte os chips na aba Conexões.'
+        : 'Faltam EVOLUTION_API_URL e EVOLUTION_API_KEY. Sem isso não há campanha de GRUPO — a API oficial da Meta não envia para grupos.',
     },
     {
       ok: Boolean(ambiente.email),

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Connection, ConnectionStatus } from '@/lib/types';
 import { formatarTelefone } from '@/lib/whatsapp/jid';
 import { formatWhen } from '@/lib/format';
-import { inputCls } from '@/components/ui';
+import { inputCls, SegButton } from '@/components/ui';
+import { AvisoQualidade, CamposOficial, PainelTemplates, SeloQualidade, type DadosOficial } from './Oficial';
 
 interface QrCode {
   base64: string | null;
@@ -23,14 +24,24 @@ export function ConexoesClient({
   initial,
   gruposPorConexao,
   configurada,
+  oficialConfigurada,
 }: {
   initial: Connection[];
   gruposPorConexao: Record<string, { total: number; ativos: number }>;
   configurada: boolean;
+  oficialConfigurada: boolean;
 }) {
   const [conexoes, setConexoes] = useState(initial);
   const [criando, setCriando] = useState(false);
   const [nome, setNome] = useState('');
+  // Qual dos dois conectores está sendo cadastrado. O padrão é a API oficial: é ela
+  // que faz disparo em massa, e é o caminho que a regra do sistema manda usar.
+  const [tipo, setTipo] = useState<'cloud' | 'evolution'>('cloud');
+  const [oficial, setOficial] = useState<DadosOficial>({
+    phone_number_id: '',
+    waba_id: '',
+    msgs_por_segundo: 10,
+  });
   const [erro, setErro] = useState<string | null>(null);
   // Conexão cujo QR está aberto na tela. Um por vez: o QR expira em ~40s e manter
   // vários pedindo QR novo em paralelo só castiga a Evolution à toa.
@@ -40,6 +51,10 @@ export function ConexoesClient({
     setConexoes((lista) => lista.map((x) => (x.id === c.id ? c : x)));
   }
 
+  const prontoParaCriar =
+    Boolean(nome.trim()) &&
+    (tipo === 'cloud' ? oficialConfigurada && /^\d{5,}$/.test(oficial.phone_number_id) : configurada);
+
   async function criar() {
     setCriando(true);
     setErro(null);
@@ -47,7 +62,7 @@ export function ConexoesClient({
       const res = await fetch('/api/connections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nome }),
+        body: JSON.stringify(tipo === 'cloud' ? { nome, provider: 'cloud', ...oficial } : { nome }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -56,7 +71,11 @@ export function ConexoesClient({
       }
       setConexoes((lista) => [...lista, body.conexao]);
       setNome('');
-      // Já abre o QR: criar uma conexão e não conectar o número não serve para nada.
+      if (tipo === 'cloud') {
+        setOficial({ phone_number_id: '', waba_id: '', msgs_por_segundo: 10 });
+        return;
+      }
+      // Já abre o QR: criar uma conexão de chip e não conectar o número não serve para nada.
       setConectando({ id: body.conexao.id, qr: body.qrcode ?? null });
     } catch {
       setErro('Sem conexão com o servidor. Tente de novo.');
@@ -66,13 +85,11 @@ export function ConexoesClient({
   }
 
   async function remover(c: Connection) {
-    if (
-      !window.confirm(
-        `Remover a conexão "${c.nome}"? O número é desconectado e a instância apagada na Evolution. Os grupos e o histórico de campanhas continuam aqui.`,
-      )
-    ) {
-      return;
-    }
+    const explicacao =
+      c.provider === 'cloud'
+        ? `Remover "${c.nome}"? O número continua existindo na Meta — sai daqui o cadastro, os templates sincronizados e a ligação com as campanhas.`
+        : `Remover a conexão "${c.nome}"? O número é desconectado e a instância apagada na Evolution. Os grupos e o histórico de campanhas continuam aqui.`;
+    if (!window.confirm(explicacao)) return;
     const res = await fetch(`/api/connections/${c.id}`, { method: 'DELETE' });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -86,14 +103,17 @@ export function ConexoesClient({
     <div className="max-w-4xl">
       <header className="mb-6">
         <h1 className="font-display text-[26px] font-semibold tracking-[-0.01em]">Conexões</h1>
-        <p className="mt-1.5 max-w-2xl text-sm text-muted">
-          Cada conexão é um número de WhatsApp ligado por QR Code, igual ao WhatsApp Web. É por
-          ele que as campanhas saem — e é dele que vêm os confirmados de entrega e leitura que
-          alimentam o painel.
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-muted">
+          São dois tipos de número, e eles fazem coisas diferentes.{' '}
+          <b className="text-ink">API oficial</b> é o número registrado na Meta: é ele — e só ele —
+          que faz <b className="text-ink">disparo em massa</b> para contatos, com template aprovado
+          e sem risco de bloqueio. <b className="text-ink">Chip</b> é o número lido por QR Code,
+          igual ao WhatsApp Web: é o único que envia para <b className="text-ink">grupos</b>, mas
+          não aguenta volume — passar de algumas centenas por dia é o que derruba o número.
         </p>
       </header>
 
-      {!configurada && (
+      {tipo === 'evolution' && !configurada && (
         <div
           role="alert"
           className="mb-6 rounded-xl2 border border-orange/30 bg-orange/[0.08] p-5 text-sm leading-relaxed text-[#ffb183]"
@@ -105,7 +125,35 @@ export function ConexoesClient({
         </div>
       )}
 
+      {tipo === 'cloud' && !oficialConfigurada && (
+        <div
+          role="alert"
+          className="mb-6 rounded-xl2 border border-orange/30 bg-orange/[0.08] p-5 text-sm leading-relaxed text-[#ffb183]"
+        >
+          <strong className="font-semibold">API oficial da Meta não configurada.</strong> Defina{' '}
+          <code className="font-mono text-xs">META_ACCESS_TOKEN</code>,{' '}
+          <code className="font-mono text-xs">META_APP_SECRET</code> e{' '}
+          <code className="font-mono text-xs">META_WEBHOOK_VERIFY_TOKEN</code> nas variáveis de
+          ambiente. O passo a passo está em{' '}
+          <code className="font-mono text-xs">docs/API-OFICIAL.md</code>.
+        </div>
+      )}
+
       <div className="mb-6 flex flex-wrap items-end gap-3 rounded-xl2 border border-border bg-surface p-5">
+        <div className="w-full">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+            Tipo de número
+          </span>
+          <div className="flex gap-2">
+            <SegButton on={tipo === 'cloud'} onClick={() => setTipo('cloud')}>
+              API oficial · disparo em massa
+            </SegButton>
+            <SegButton on={tipo === 'evolution'} onClick={() => setTipo('evolution')}>
+              Chip por QR Code · grupos
+            </SegButton>
+          </div>
+        </div>
+
         <label className="min-w-[240px] flex-1 text-sm">
           <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-muted">
             Nome da conexão
@@ -113,17 +161,22 @@ export function ConexoesClient({
           <input
             value={nome}
             onChange={(e) => setNome(e.target.value)}
-            placeholder="Comercial 1"
+            placeholder={tipo === 'cloud' ? 'Marketing oficial' : 'Comercial 1'}
             className={inputCls}
-            disabled={!configurada}
+            disabled={tipo === 'cloud' ? !oficialConfigurada : !configurada}
           />
         </label>
+
+        {tipo === 'cloud' && (
+          <CamposOficial dados={oficial} onChange={setOficial} desabilitado={!oficialConfigurada} />
+        )}
+
         <button
           onClick={() => void criar()}
-          disabled={criando || !nome.trim() || !configurada}
+          disabled={criando || !prontoParaCriar}
           className="rounded-xl bg-blue px-5 py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover disabled:cursor-not-allowed disabled:bg-surface2 disabled:text-muted disabled:shadow-none"
         >
-          {criando ? 'Criando…' : '＋ Conectar número'}
+          {criando ? 'Criando…' : tipo === 'cloud' ? '＋ Cadastrar número oficial' : '＋ Conectar número'}
         </button>
         {erro && (
           <p className="w-full text-sm text-[#ffb183]" role="alert">
@@ -134,9 +187,10 @@ export function ConexoesClient({
 
       {conexoes.length === 0 ? (
         <div className="rounded-xl2 border border-border bg-surface p-8 text-center">
-          <p className="text-sm text-muted">
-            Nenhum número conectado ainda. Dê um nome acima e clique em <b>Conectar número</b> —
-            um QR Code aparece para você ler com o celular.
+          <p className="text-sm leading-relaxed text-muted">
+            Nenhum número cadastrado ainda. Para <b className="text-ink">disparo em massa</b>, cadastre
+            um número da API oficial com os IDs do Business Manager. Para mandar em{' '}
+            <b className="text-ink">grupos</b>, troque o tipo para chip e leia o QR Code com o celular.
           </p>
         </div>
       ) : (
@@ -179,8 +233,12 @@ function CartaoConexao({
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [resultadoSync, setResultadoSync] = useState<string | null>(null);
+  const [verTemplates, setVerTemplates] = useState(false);
   const estilo = ESTILO_STATUS[conexao.status];
-  const mostrandoQr = qrAberto !== undefined;
+  const ehOficial = conexao.provider === 'cloud';
+  // QR só existe no chip. Num número oficial o painel nunca abre, mesmo que algo
+  // tente abri-lo — não há aparelho para parear.
+  const mostrandoQr = !ehOficial && qrAberto !== undefined;
 
   const pedirQr = useCallback(async () => {
     const res = await fetch(`/api/connections/${conexao.id}/qrcode`);
@@ -284,6 +342,10 @@ function CartaoConexao({
               <span className={`h-[7px] w-[7px] rounded-full ${estilo.dot} ${estilo.pulse ? 'animate-chip-pulse' : ''}`} />
               {estilo.label}
             </span>
+            <span className="whitespace-nowrap rounded-full border border-border px-2.5 py-1 text-xs font-semibold text-muted">
+              {ehOficial ? 'API oficial' : 'Chip (QR Code)'}
+            </span>
+            {ehOficial && <SeloQualidade qualidade={conexao.qualidade} />}
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
@@ -293,17 +355,33 @@ function CartaoConexao({
               <span>Sem número conectado</span>
             )}
             {conexao.profile_name && <span>{conexao.profile_name}</span>}
-            <span>
-              {grupos ? `${grupos.ativos} de ${grupos.total} grupos ativos` : 'Nenhum grupo sincronizado'}
-            </span>
-            <span>
-              Intervalo {conexao.delay_min_seg}–{conexao.delay_max_seg}s
-              {conexao.limite_diario > 0 ? ` · até ${conexao.limite_diario}/dia` : ' · sem limite diário'}
-            </span>
-            {conexao.ultima_sincronizacao && (
-              <span>Grupos sincronizados em {formatWhen(conexao.ultima_sincronizacao)}</span>
+            {ehOficial ? (
+              <>
+                <span>Disparo em massa · não envia para grupos</span>
+                <span>
+                  {conexao.msgs_por_segundo ?? 10} msg/s
+                  {conexao.limite_diario > 0
+                    ? ` · até ${conexao.limite_diario}/dia`
+                    : ' · teto diário definido pela Meta'}
+                </span>
+              </>
+            ) : (
+              <>
+                <span>
+                  {grupos ? `${grupos.ativos} de ${grupos.total} grupos ativos` : 'Nenhum grupo sincronizado'}
+                </span>
+                <span>
+                  Intervalo {conexao.delay_min_seg}–{conexao.delay_max_seg}s
+                  {conexao.limite_diario > 0 ? ` · até ${conexao.limite_diario}/dia` : ' · sem limite diário'}
+                </span>
+                {conexao.ultima_sincronizacao && (
+                  <span>Grupos sincronizados em {formatWhen(conexao.ultima_sincronizacao)}</span>
+                )}
+              </>
             )}
           </div>
+
+          {ehOficial && <AvisoQualidade qualidade={conexao.qualidade} />}
 
           {conexao.ultimo_erro && (
             <p className="mt-2 rounded-lg border border-orange/25 bg-orange/[0.07] px-2.5 py-1.5 text-xs text-[#ffb183]">
@@ -319,7 +397,16 @@ function CartaoConexao({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {conexao.status === 'conectada' ? (
+          {ehOficial ? (
+            <>
+              <Botao onClick={() => setVerTemplates((v) => !v)}>
+                {verTemplates ? 'Ocultar templates' : 'Templates'}
+              </Botao>
+              <Botao onClick={() => void conferirEstado()} ocupado={ocupado === 'estado'}>
+                Conferir na Meta
+              </Botao>
+            </>
+          ) : conexao.status === 'conectada' ? (
             <>
               <Botao onClick={() => void sincronizar()} ocupado={ocupado === 'sync'}>
                 Puxar grupos
@@ -351,6 +438,8 @@ function CartaoConexao({
           </Botao>
         </div>
       </div>
+
+      {ehOficial && verTemplates && <PainelTemplates conexao={conexao} />}
 
       {mostrandoQr && (
         <PainelQr
@@ -450,7 +539,10 @@ function Botao({
       type="button"
       onClick={onClick}
       disabled={ocupado}
-      className={`rounded-xl border px-4 py-2.5 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+      // Estado desabilitado com COR explícita, não com `opacity`: opacidade sobre o
+      // lima da marca vira um cinza esverdeado sujo, e o botão fica parecendo um erro
+      // de renderização em vez de um botão desligado.
+      className={`rounded-xl border px-4 py-2.5 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:border-border disabled:bg-surface2 disabled:text-muted disabled:hover:border-border disabled:hover:text-muted ${
         perigo
           ? 'border-border text-muted hover:border-[#ffb183]/40 hover:text-[#ffb183]'
           : 'border-border text-muted hover:border-blue2 hover:text-ink'

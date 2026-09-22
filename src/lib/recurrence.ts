@@ -89,6 +89,11 @@ export function buildRecorrenciaRow(
     alvo: 'grupos',
     list_ids: null,
     connection_id: rec.connection_id ?? null,
+    // Campanha de grupo não usa template: quem envia é o chip, com texto livre.
+    template_nome: null,
+    template_idioma: null,
+    template_variaveis: null,
+    template_cabecalho_url: null,
     enviar_em: enviarEmISO,
     status: 'agendada',
     recorrencia_id: rec.id,
