@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/http';
 import { apagarInstancia, EvolutionError, infoInstancia } from '@/lib/whatsapp/evolution';
-import { CloudError, lerSaudeDoNumero } from '@/lib/whatsapp/cloud';
+import { CloudError, esquecerToken, lerSaudeDoNumero } from '@/lib/whatsapp/cloud';
 import { instanciaDe } from '@/lib/whatsapp/conexao';
 import type { Connection } from '@/lib/types';
 
@@ -218,6 +218,14 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     } catch (e) {
       aviso = e instanceof EvolutionError ? e.message : String(e);
     }
+  }
+
+  // O token do número (conectado pelo botão da Meta) sai do Vault junto. Sem isto o
+  // segredo ficaria órfão lá, válido e sem ninguém sabendo de onde veio.
+  const c = conexao as Connection;
+  if (c.provider === 'cloud') {
+    await supabase.rpc('sf_meta_apagar_token', { p_conexao: id });
+    if (c.phone_number_id) esquecerToken(c.phone_number_id);
   }
 
   const { error } = await supabase.from('connections').delete().eq('id', id);

@@ -1,10 +1,16 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createServerClient } from '@/lib/supabase/server';
 import { ehPedidoDeParada } from '@/lib/whatsapp/massa';
 import { normalizarTelefoneBR } from '@/lib/whatsapp/jid';
+import { receberMensagem } from '@/lib/automacao/motor';
+import type { MensagemRecebida } from '@/lib/automacao/montar';
+import type { Connection } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
+// As automações rodam DEPOIS da resposta (after): a Meta recebe o 200 na hora e o
+// fluxo tem até 60 s para mandar as mensagens dele.
+export const maxDuration = 60;
 
 /**
  * A porta de entrada do disparo em massa.
@@ -152,19 +158,54 @@ export async function POST(req: Request) {
   try {
     const supabase = createServerClient();
     let tratados = 0;
+    const paraAutomacao: { phoneId: string; mensagem: MensagemRecebida; nome: string | null }[] = [];
 
     const entradas = (payload.entry ?? []) as { changes?: { value?: Record<string, unknown> }[] }[];
     for (const entrada of entradas) {
       for (const mudanca of entrada.changes ?? []) {
         const valor = mudanca.value ?? {};
+        const phoneId = String((valor.metadata as { phone_number_id?: string } | undefined)?.phone_number_id ?? '');
+        const perfis = (valor.contacts ?? []) as { wa_id?: string; profile?: { name?: string } }[];
 
         for (const status of (valor.statuses ?? []) as StatusMeta[]) {
           if (await aplicarStatus(supabase, status)) tratados += 1;
         }
         for (const mensagem of (valor.messages ?? []) as MensagemMeta[]) {
           if (await aplicarMensagem(supabase, mensagem)) tratados += 1;
+          if (phoneId) {
+            const nome = perfis.find((c) => c.wa_id === mensagem.from)?.profile?.name ?? perfis[0]?.profile?.name ?? null;
+            paraAutomacao.push({ phoneId, mensagem: mensagem as MensagemRecebida, nome });
+          }
         }
       }
+    }
+
+    // Conversa + automações. Depois do 200, para a Meta nunca esperar pelo fluxo — e
+    // em ordem, uma mensagem de cada vez, porque "oi" e "japão" seguidos precisam ser
+    // tratados nessa ordem.
+    if (paraAutomacao.length) {
+      after(async () => {
+        const conexoes = new Map<string, Connection | null>();
+        for (const item of paraAutomacao) {
+          try {
+            if (!conexoes.has(item.phoneId)) {
+              const { data } = await supabase
+                .from('connections')
+                .select('*')
+                .eq('phone_number_id', item.phoneId)
+                .maybeSingle();
+              conexoes.set(item.phoneId, (data as Connection | null) ?? null);
+            }
+            const conexao = conexoes.get(item.phoneId);
+            // Número que não é deste SendFlow (ex.: o do QS, se o webhook do app vier
+            // parar aqui): ignora sem mexer em nada.
+            if (!conexao) continue;
+            await receberMensagem(supabase, conexao, item.mensagem, item.nome);
+          } catch (e) {
+            console.error('[webhook meta] automação falhou:', e);
+          }
+        }
+      });
     }
 
     return NextResponse.json({ ok: true, tratados });
@@ -182,6 +223,10 @@ async function aplicarStatus(
 ): Promise<boolean> {
   const novoStatus = traduzirStatus(status.status ?? '');
   if (!novoStatus || !status.id) return false;
+
+  // A bolha na caixa de conversa (mensagens de fluxo e manuais). Mesma regra do funil:
+  // só avança, nunca volta — "lido" não pode virar "entregue" por um evento atrasado.
+  await atualizarBolha(supabase, status, novoStatus);
 
   const { data: linha } = await supabase
     .from('campaign_recipients')
@@ -274,4 +319,32 @@ async function aplicarMensagem(
     .update({ respondido_em: new Date().toISOString() })
     .eq('id', linha.id);
   return true;
+}
+
+/** ✓ ✓✓ ✓✓azul na caixa de conversa. */
+async function atualizarBolha(
+  supabase: ReturnType<typeof createServerClient>,
+  status: StatusMeta,
+  novoStatus: 'enviado' | 'entregue' | 'lido' | 'falha',
+): Promise<void> {
+  const { data: bolha } = await supabase
+    .from('wa_mensagens')
+    .select('id,status')
+    .eq('wamid', status.id as string)
+    .maybeSingle();
+  if (!bolha) return;
+  if (novoStatus === 'falha') {
+    const erro = status.errors?.[0];
+    await supabase
+      .from('wa_mensagens')
+      .update({
+        status: 'falha',
+        erro: String(erro?.error_data?.details ?? erro?.message ?? erro?.title ?? 'A Meta não entregou.').slice(0, 400),
+      })
+      .eq('id', bolha.id);
+    return;
+  }
+  const atual = ORDEM[(bolha.status as string) ?? 'enviando'] ?? 1;
+  if (ORDEM[novoStatus] <= atual) return;
+  await supabase.from('wa_mensagens').update({ status: novoStatus }).eq('id', bolha.id);
 }

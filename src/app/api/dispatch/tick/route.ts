@@ -5,6 +5,7 @@ import { rodarEmail } from '@/lib/dispatch/email-worker';
 import { Orcamento } from '@/lib/dispatch/ritmo';
 import { refillSePreciso } from '@/lib/dispatch/refill-periodico';
 import { avisarSePreciso } from '@/lib/dispatch/alerta';
+import { rodarAutomacoes } from '@/lib/automacao/motor';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,16 @@ async function executar(req: Request) {
   const supabase = createServerClient();
   const agora = new Date();
 
+  // Automações primeiro, com teto curto: quem espera o "aguarde 2 dias" acabar é uma
+  // pessoa numa conversa, e 12 s por minuto dão para dezenas de execuções.
+  const automacoes =
+    canal === 'email'
+      ? null
+      : await rodarAutomacoes(supabase, inicio + 12_000).catch((e) => {
+          console.error('[tick] automações falharam:', e);
+          return null;
+        });
+
   // WhatsApp primeiro: é o canal com restrição de ritmo, então é ele que precisa da
   // maior fatia. Mas ele roda com um TETO — sem isso, uma fila grande de WhatsApp
   // deixava o e-mail com orçamento zero, tick após tick.
@@ -104,6 +115,7 @@ async function executar(req: Request) {
     duracao_ms: Date.now() - inicio,
     restante,
     alertas,
+    automacoes,
     whatsapp,
     email,
     recorrentes,

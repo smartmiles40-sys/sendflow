@@ -6,6 +6,7 @@ import { formatarTelefone } from '@/lib/whatsapp/jid';
 import { formatWhen } from '@/lib/format';
 import { inputCls, SegButton } from '@/components/ui';
 import { AvisoQualidade, CamposOficial, PainelTemplates, SeloQualidade, type DadosOficial } from './Oficial';
+import { ConectarMeta, ConsertosOficial } from './ConectarMeta';
 
 interface QrCode {
   base64: string | null;
@@ -139,6 +140,15 @@ export function ConexoesClient({
         </div>
       )}
 
+      <ConectarMeta
+        onConectou={(c) =>
+          setConexoes((lista) => (lista.some((x) => x.id === c.id) ? lista.map((x) => (x.id === c.id ? c : x)) : [...lista, c]))
+        }
+      />
+
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+        Cadastro à mão · chip por QR Code ou número oficial por IDs (avançado)
+      </h2>
       <div className="mb-6 flex flex-wrap items-end gap-3 rounded-xl2 border border-border bg-surface p-5">
         <div className="w-full">
           <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-muted">
@@ -439,6 +449,7 @@ function CartaoConexao({
         </div>
       </div>
 
+      {ehOficial && <ConsertosOficial conexao={conexao} onAtualizar={onAtualizar} />}
       {ehOficial && verTemplates && <PainelTemplates conexao={conexao} />}
 
       {mostrandoQr && (

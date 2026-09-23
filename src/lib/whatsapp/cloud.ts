@@ -72,11 +72,11 @@ export class CloudError extends Error {
 const VERSAO_PADRAO = 'v23.0';
 const TIMEOUT_MS = 20_000;
 
-export function lerConfigCloud(): CloudConfig {
-  const token = (process.env.META_ACCESS_TOKEN ?? '').trim();
+export function lerConfigCloud(tokenDoNumero?: string | null): CloudConfig {
+  const token = (tokenDoNumero ?? '').trim() || (process.env.META_ACCESS_TOKEN ?? '').trim();
   if (!token) {
     throw new CloudError(
-      'API oficial do WhatsApp não configurada. Defina META_ACCESS_TOKEN nas variáveis de ambiente.',
+      'Este número não tem token: conecte-o pelo botão "Conectar com a Meta" em Conexões (ou defina META_ACCESS_TOKEN).',
       { status: 503, permanente: true },
     );
   }
@@ -90,7 +90,45 @@ export function lerConfigCloud(): CloudConfig {
 
 /** Dá para falar com a Meta? Usado pela tela para explicar o que falta configurar. */
 export function cloudConfigurada(): boolean {
-  return Boolean((process.env.META_ACCESS_TOKEN ?? '').trim());
+  return Boolean((process.env.META_ACCESS_TOKEN ?? '').trim()) || cadastroMetaConfigurado();
+}
+
+/**
+ * O botão "Conectar com a Meta" (Cadastro Incorporado) funciona? Precisa do id do app
+ * (público) e do segredo do app (para trocar o código pelo token, no servidor).
+ */
+export function cadastroMetaConfigurado(): boolean {
+  return Boolean((process.env.META_APP_ID ?? '').trim() && (process.env.META_APP_SECRET ?? '').trim());
+}
+
+// ── O token de cada número ───────────────────────────────────────────────────────
+//
+// Desde a 0020 cada número conectado pelo botão da Meta tem o SEU token, guardado no
+// Vault do Supabase. O de ambiente (META_ACCESS_TOKEN) virou o reserva — vale para
+// quem cadastrou à mão, do jeito antigo. Cache curto: o motor manda dezenas de
+// mensagens por segundo e não pode ir ao Vault a cada uma.
+
+const cacheToken = new Map<string, { token: string | null; ate: number }>();
+
+export async function tokenDoNumero(phoneNumberId: string): Promise<string | null> {
+  const guardado = cacheToken.get(phoneNumberId);
+  if (guardado && guardado.ate > Date.now()) return guardado.token;
+  let token: string | null = null;
+  try {
+    const { createServerClient } = await import('../supabase/server');
+    const { data } = await createServerClient().rpc('sf_meta_token', { p_phone: phoneNumberId });
+    token = typeof data === 'string' && data ? data : null;
+  } catch {
+    token = null;
+  }
+  cacheToken.set(phoneNumberId, { token, ate: Date.now() + 60_000 });
+  return token;
+}
+
+/** Depois de conectar/desconectar um número: o próximo envio relê o Vault. */
+export function esquecerToken(phoneNumberId?: string): void {
+  if (phoneNumberId) cacheToken.delete(phoneNumberId);
+  else cacheToken.clear();
 }
 
 // ── Códigos de erro da Meta ──────────────────────────────────────────────────────
@@ -198,11 +236,20 @@ function erroDaMeta(corpo: unknown, status: number, retryAfterMs: number): Cloud
 
 // ── A chamada ────────────────────────────────────────────────────────────────────
 
-async function chamar<T = unknown>(
+export async function chamar<T = unknown>(
   caminho: string,
-  init: { method?: string; body?: unknown; timeoutMs?: number } = {},
+  init: {
+    method?: string;
+    body?: unknown;
+    timeoutMs?: number;
+    /** De qual número é a chamada — decide o token. */
+    phone?: string | null;
+    /** Token explícito (ex.: o recém-trocado na conexão, ou app_id|app_secret). */
+    token?: string | null;
+  } = {},
 ): Promise<T> {
-  const { token, versao } = lerConfigCloud();
+  const doNumero = init.token ?? (init.phone ? await tokenDoNumero(init.phone) : null);
+  const { token, versao } = lerConfigCloud(doNumero);
   const url = `https://graph.facebook.com/${versao}${caminho}`;
 
   let res: Response;
@@ -261,6 +308,11 @@ export interface EnvioTemplate {
   midiaCabecalhoUrl?: string | null;
   /** Nome do arquivo mostrado quando o cabeçalho é DOCUMENT. */
   nomeArquivo?: string | null;
+  /**
+   * Payload dos botões de resposta rápida, por posição no template. Volta no webhook
+   * quando a pessoa clica — é o que liga o clique à seta certa de uma automação.
+   */
+  botoesPayload?: { indice: number; payload: string }[];
 }
 
 interface RespostaEnvio {
@@ -290,6 +342,15 @@ export function montarComponentes(envio: EnvioTemplate): Record<string, unknown>
     componentes.push({ type: 'body', parameters: parametrosDeTexto(envio.variaveisCorpo) });
   }
 
+  for (const b of envio.botoesPayload ?? []) {
+    componentes.push({
+      type: 'button',
+      sub_type: 'quick_reply',
+      index: String(b.indice),
+      parameters: [{ type: 'payload', payload: b.payload }],
+    });
+  }
+
   return componentes;
 }
 
@@ -317,6 +378,7 @@ export async function enviarTemplate(
   const res = await chamar<RespostaEnvio>(`/${phoneNumberId}/messages`, {
     method: 'POST',
     body: corpo,
+    phone: phoneNumberId,
   });
   return {
     messageId: res?.messages?.[0]?.id ?? null,
@@ -334,6 +396,7 @@ export async function enviarTexto(
 ): Promise<{ messageId: string | null }> {
   const res = await chamar<RespostaEnvio>(`/${phoneNumberId}/messages`, {
     method: 'POST',
+    phone: phoneNumberId,
     body: {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
@@ -346,11 +409,39 @@ export async function enviarTexto(
 }
 
 /** Marca como lida a mensagem que a pessoa mandou. Silencioso: falhar aqui não é grave. */
-export async function marcarLida(phoneNumberId: string, messageId: string): Promise<void> {
+export async function marcarLida(
+  phoneNumberId: string,
+  messageId: string,
+  opts: { digitando?: boolean } = {},
+): Promise<void> {
   await chamar(`/${phoneNumberId}/messages`, {
     method: 'POST',
-    body: { messaging_product: 'whatsapp', status: 'read', message_id: messageId },
+    phone: phoneNumberId,
+    body: {
+      messaging_product: 'whatsapp',
+      status: 'read',
+      message_id: messageId,
+      // "digitando…" na tela da pessoa, até a próxima mensagem sair (ou 25 s).
+      ...(opts.digitando ? { typing_indicator: { type: 'text' } } : {}),
+    },
   }).catch(() => undefined);
+}
+
+/**
+ * Manda uma mensagem já montada (texto, mídia, interativa, template). O corpo vem de
+ * `montarMensagens` (automacao/montar.ts) — aqui só o envelope e o número.
+ */
+export async function enviarCorpo(
+  phoneNumberId: string,
+  para: string,
+  corpo: Record<string, unknown>,
+): Promise<{ messageId: string | null; waId: string | null }> {
+  const res = await chamar<RespostaEnvio>(`/${phoneNumberId}/messages`, {
+    method: 'POST',
+    phone: phoneNumberId,
+    body: { messaging_product: 'whatsapp', recipient_type: 'individual', to: para, ...corpo },
+  });
+  return { messageId: res?.messages?.[0]?.id ?? null, waId: res?.contacts?.[0]?.wa_id ?? null };
 }
 
 // ── Leitura: templates e saúde do número ─────────────────────────────────────────
@@ -414,7 +505,7 @@ export function normalizarTemplate(bruto: Record<string, unknown>): TemplateMeta
 }
 
 /** Lista TODOS os templates da conta, seguindo a paginação da Graph API. */
-export async function listarTemplates(wabaId: string): Promise<TemplateMeta[]> {
+export async function listarTemplates(wabaId: string, phoneNumberId?: string | null): Promise<TemplateMeta[]> {
   const campos = 'id,name,status,category,language,components';
   let caminho: string | null = `/${wabaId}/message_templates?limit=100&fields=${campos}`;
   const achados: TemplateMeta[] = [];
@@ -422,7 +513,9 @@ export async function listarTemplates(wabaId: string): Promise<TemplateMeta[]> {
   // Teto de 20 páginas (2 mil templates). Nenhuma conta real chega perto, e um cursor
   // que volta para si mesmo não pode travar o servidor num laço infinito.
   for (let pagina = 0; pagina < 20 && caminho; pagina += 1) {
-    const res: { data?: Record<string, unknown>[]; paging?: { next?: string } } = await chamar(caminho);
+    const res: { data?: Record<string, unknown>[]; paging?: { next?: string } } = await chamar(caminho, {
+      phone: phoneNumberId ?? null,
+    });
     for (const bruto of res?.data ?? []) achados.push(normalizarTemplate(bruto));
 
     const proxima = res?.paging?.next ?? null;
@@ -444,9 +537,10 @@ export interface SaudeDoNumero {
  * Estado do número na Meta. A `qualidade` é o termômetro que antecede a punição:
  * quando cai para RED, o teto diário despenca e o número entra na fila de revisão.
  */
-export async function lerSaudeDoNumero(phoneNumberId: string): Promise<SaudeDoNumero> {
+export async function lerSaudeDoNumero(phoneNumberId: string, token?: string | null): Promise<SaudeDoNumero> {
   const res = await chamar<Record<string, unknown>>(
     `/${phoneNumberId}?fields=display_phone_number,verified_name,quality_rating,messaging_limit_tier`,
+    { phone: phoneNumberId, token: token ?? null },
   );
   const qualidade = String(res?.quality_rating ?? 'UNKNOWN').toUpperCase();
   return {

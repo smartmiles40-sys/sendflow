@@ -21,6 +21,8 @@ const grupos: { titulo: string | null; itens: { href: string; label: string; ico
   {
     titulo: 'WhatsApp',
     itens: [
+      { href: '/conversas', label: 'Conversas', icon: '💬' },
+      { href: '/automacoes', label: 'Automações', icon: '⚡' },
       { href: '/celular', label: 'Celular', icon: '📱' },
       { href: '/campanhas', label: 'Campanhas', icon: '📣' },
       { href: '/cadencias', label: 'Cadências', icon: '🧭' },
@@ -203,7 +205,7 @@ function EstadoConexoes({ resumo }: { resumo: ResumoConexoes | null }) {
       {resumo.conectadas} de {resumo.total} número{resumo.total > 1 ? 's' : ''} conectado
       {resumo.conectadas === 1 && resumo.total === 1 ? '' : 's'}
       <br />
-      <span className="text-muted/80">Motor próprio · Evolution API</span>
+      <span className="text-muted/80">API oficial da Meta · Evolution</span>
     </>
   );
 }

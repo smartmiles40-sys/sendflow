@@ -154,6 +154,11 @@ export interface Connection {
   waba_id?: string | null;
   /** Ritmo da Cloud API, em mensagens por segundo. Não se aplica à Evolution. */
   msgs_por_segundo?: number;
+  /** Id do token no Vault (conectado pelo botão da Meta). Nulo = token do ambiente. */
+  segredo_id?: string | null;
+  modo_meta?: 'cloud' | 'coexistencia' | null;
+  webhook_apontado_em?: string | null;
+  ultima_entrada_em?: string | null;
   /** Termômetro da Meta: quando cai para RED, o teto diário despenca. */
   qualidade?: 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN' | null;
   numero: string | null;

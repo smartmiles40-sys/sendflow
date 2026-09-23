@@ -74,7 +74,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   let templates;
   try {
-    templates = await listarTemplates(conexao.waba_id);
+    templates = await listarTemplates(conexao.waba_id, conexao.phone_number_id);
   } catch (e) {
     const erro = e instanceof CloudError ? e : new CloudError(String(e));
     return NextResponse.json({ error: erro.message }, { status: erro.status || 502 });
