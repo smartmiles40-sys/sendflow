@@ -35,6 +35,7 @@ const grupos: { titulo: string | null; itens: { href: string; label: string; ico
     itens: [
       { href: '/conversas', label: 'Conversas', icon: '💬' },
       { href: '/automacoes', label: 'Automações', icon: '⚡' },
+      { href: '/instagram', label: 'Instagram', icon: '📸' },
       { href: '/disparos', label: 'Disparo em massa', icon: '🚀' },
     ],
   },

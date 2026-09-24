@@ -7,6 +7,7 @@ import { refillSePreciso } from '@/lib/dispatch/refill-periodico';
 import { avisarSePreciso } from '@/lib/dispatch/alerta';
 import { rodarAutomacoes } from '@/lib/automacao/motor';
 import { recalcularScoreSePreciso } from '@/lib/dispatch/score';
+import { renovarTokensInstagram } from '@/lib/instagram/conexao';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,6 +106,15 @@ async function executar(req: Request) {
     return null;
   });
 
+  // Token do Instagram vale 60 dias: renova os que vencem em menos de 10. Só no minuto
+  // zero de cada hora — é barato, mas não precisa rodar 60 vezes por hora.
+  const tokensInstagram = agora.getUTCMinutes() === 0
+    ? await renovarTokensInstagram().catch((e) => {
+        console.error('[tick] renovar tokens do Instagram falhou:', e);
+        return null;
+      })
+    : null;
+
   const restante = (whatsapp?.pendentes ?? 0) + (email?.pendentes ?? 0);
 
   // O vigia vem por último e nunca lança: se o motor parou, alguém precisa saber por
@@ -126,6 +136,7 @@ async function executar(req: Request) {
     email,
     recorrentes,
     score_recalculado: scoreRecalculado,
+    tokens_instagram: tokensInstagram,
   });
 }
 
