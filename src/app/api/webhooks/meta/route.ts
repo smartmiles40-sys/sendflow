@@ -6,6 +6,7 @@ import { normalizarTelefoneBR } from '@/lib/whatsapp/jid';
 import { receberMensagem } from '@/lib/automacao/motor';
 import type { MensagemRecebida } from '@/lib/automacao/montar';
 import type { Connection } from '@/lib/types';
+import { lerConfigMeta } from '@/lib/whatsapp/meta-config';
 
 export const dynamic = 'force-dynamic';
 // As automações rodam DEPOIS da resposta (after): a Meta recebe o 200 na hora e o
@@ -121,7 +122,7 @@ export async function GET(req: Request) {
   const modo = url.searchParams.get('hub.mode');
   const token = url.searchParams.get('hub.verify_token');
   const desafio = url.searchParams.get('hub.challenge') ?? '';
-  const esperado = (process.env.META_WEBHOOK_VERIFY_TOKEN ?? '').trim();
+  const esperado = (await lerConfigMeta()).verifyToken ?? '';
 
   if (modo === 'subscribe' && esperado && token === esperado) {
     return new Response(desafio, { status: 200, headers: { 'content-type': 'text/plain' } });
@@ -132,7 +133,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const appSecret = (process.env.META_APP_SECRET ?? '').trim();
+  const appSecret = (await lerConfigMeta()).appSecret ?? '';
   const corpoCru = await req.text();
 
   // Falha FECHADA: sem segredo configurado o endpoint não aceita nada. É a mesma
@@ -140,7 +141,7 @@ export async function POST(req: Request) {
   // permite forjar entregas, inventar leituras e descadastrar contatos.
   if (!appSecret) {
     return NextResponse.json(
-      { error: 'META_APP_SECRET não configurado — o webhook recusa eventos até lá.' },
+      { error: 'Chave secreta do app da Meta não configurada (Conexões) — o webhook recusa eventos até lá.' },
       { status: 503 },
     );
   }

@@ -295,7 +295,7 @@ function Diagnostico({ ambiente }: { ambiente: Ambiente }) {
       titulo: 'Banco de dados (Supabase)',
       detalhe: ambiente.banco
         ? 'Conectado.'
-        : 'Não foi possível ler o banco. Confira NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY, e se as migrations de supabase/migrations/ já rodaram (da 0001 à 0019).',
+        : 'Não foi possível ler o banco. Confira NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY, e se as migrations de supabase/migrations/ já rodaram (da 0001 à 0021).',
     },
     {
       ok: ambiente.oficial,
@@ -303,7 +303,7 @@ function Diagnostico({ ambiente }: { ambiente: Ambiente }) {
       titulo: 'API oficial da Meta (disparo em massa)',
       detalhe: ambiente.oficial
         ? 'Configurada. Cadastre o número em Conexões e sincronize os templates.'
-        : 'Falta META_ACCESS_TOKEN (e META_APP_SECRET + META_WEBHOOK_VERIFY_TOKEN para os confirmados de entrega). Sem isso, não há disparo em massa para contatos.',
+        : 'Faltam o App ID e a chave secreta do app — preencha em Conexões → Dados do app da Meta. Sem isso as respostas e os confirmados de entrega não chegam.',
     },
     {
       ok: ambiente.evolution,

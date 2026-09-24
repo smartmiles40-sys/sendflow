@@ -23,6 +23,10 @@ export function ConectarMeta({ onConectou }: { onConectou: (c: Connection) => vo
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<string[]>([]);
   const [configId, setConfigId] = useState('');
+  const [appId, setAppId] = useState('');
+  const [appSecret, setAppSecret] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [salvou, setSalvou] = useState<string | null>(null);
   const [abrirAjustes, setAbrirAjustes] = useState(false);
 
   useEffect(() => {
@@ -33,7 +37,8 @@ export function ConectarMeta({ onConectou }: { onConectou: (c: Connection) => vo
         if (!vivo || !c) return;
         setCfg(c);
         setConfigId(c.configId ?? '');
-        if (!c.configId) setAbrirAjustes(true);
+        setAppId(c.appId ?? '');
+        if (!c.configId || !c.appId || !c.podeTrocarCodigo) setAbrirAjustes(true);
       })
       .catch(() => {});
     return () => {
@@ -42,23 +47,33 @@ export function ConectarMeta({ onConectou }: { onConectou: (c: Connection) => vo
   }, []);
 
   const falta: string[] = [];
-  if (cfg && !cfg.appId) falta.push('META_APP_ID');
-  if (cfg && !cfg.podeTrocarCodigo) falta.push('META_APP_SECRET');
-  if (cfg && !cfg.webhookPronto) falta.push('META_WEBHOOK_VERIFY_TOKEN');
+  if (cfg && !cfg.appId) falta.push('o App ID');
+  if (cfg && !cfg.podeTrocarCodigo) falta.push('a chave secreta do app');
+  if (cfg && !cfg.configId) falta.push('o id da configuração (config_id)');
   const pronto = Boolean(cfg?.appId && cfg.configId && cfg.podeTrocarCodigo);
   const pinOk = modo === 'coexistencia' || pin === '' || /^\d{6}$/.test(pin);
 
   async function salvarConfig() {
     setErro(null);
-    const res = await fetch('/api/connections/meta', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ configId }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) return setErro(body.error ?? 'Não consegui salvar.');
-    setCfg(body as ConfigCadastro);
-    setAbrirAjustes(false);
+    setSalvou(null);
+    setSalvando(true);
+    try {
+      // A chave secreta só vai quando foi digitada: em branco = manter a guardada.
+      const res = await fetch('/api/connections/meta', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ appId, configId, ...(appSecret ? { appSecret } : {}) }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return setErro(body.error ?? 'Não consegui salvar.');
+      setCfg(body as ConfigCadastro);
+      setAppSecret('');
+      setSalvou(body.nomeDoApp ? `Salvo. A Meta reconheceu o app "${body.nomeDoApp}".` : 'Salvo.');
+    } catch {
+      setErro('Sem conexão com o servidor. Tente de novo.');
+    } finally {
+      setSalvando(false);
+    }
   }
 
   async function conectar() {
@@ -103,8 +118,8 @@ export function ConectarMeta({ onConectou }: { onConectou: (c: Connection) => vo
 
         {falta.length > 0 && (
           <p role="alert" className="rounded-xl border border-orange/30 bg-orange/[0.08] p-3.5 text-sm leading-relaxed text-[#ffb183]">
-            Falta configurar na Vercel: {falta.map((f) => <code key={f} className="mx-0.5 font-mono text-xs">{f}</code>)}. O
-            passo a passo está em <code className="font-mono text-xs">docs/AUTOMACOES.md</code>.
+            Falta preencher em <b>Dados do app da Meta</b> (logo abaixo): {falta.join(', ')}. É uma vez só — vale para
+            o botão e para o cadastro à mão.
           </p>
         )}
 
@@ -172,7 +187,7 @@ export function ConectarMeta({ onConectou }: { onConectou: (c: Connection) => vo
             onClick={() => setAbrirAjustes((v) => !v)}
             className="text-xs font-semibold text-muted underline underline-offset-2 hover:text-ink"
           >
-            {abrirAjustes ? 'Fechar ajustes do botão' : 'Ajustes do botão'}
+            {abrirAjustes ? 'Fechar dados do app' : 'Dados do app da Meta'}
           </button>
         </div>
 
@@ -192,8 +207,13 @@ export function ConectarMeta({ onConectou }: { onConectou: (c: Connection) => vo
 
         {abrirAjustes && (
           <div className="rounded-xl border border-border bg-surface p-4">
-            <h3 className="text-[13px] font-semibold">Ajustes do botão (uma vez só)</h3>
+            <h3 className="text-[13px] font-semibold">Dados do app da Meta (uma vez só)</h3>
             <ol className="mt-2 list-decimal space-y-1 pl-5 text-xs leading-relaxed text-muted">
+              <li>
+                Em developers.facebook.com, abra o app e vá em <b className="text-ink">Configurações do app → Básico</b>:
+                copie o <b className="text-ink">ID do app</b> e a <b className="text-ink">Chave secreta do app</b> (botão
+                &quot;Mostrar&quot;). A chave vai para o cofre do banco e não aparece mais na tela.
+              </li>
               <li>
                 No app da Meta (developers.facebook.com), em <b className="text-ink">Login do Facebook para Empresas → Configurações</b>,
                 crie uma configuração do tipo <b className="text-ink">Cadastro incorporado do WhatsApp</b> e copie o id dela.
@@ -207,7 +227,28 @@ export function ConectarMeta({ onConectou }: { onConectou: (c: Connection) => vo
               </li>
             </ol>
             <div className="mt-3 flex flex-wrap items-end gap-2">
-              <label className="min-w-[220px] flex-1 text-sm">
+              <label className="min-w-[200px] flex-1 text-sm">
+                <span className="mb-1.5 block text-xs font-semibold text-muted">ID do app (App ID)</span>
+                <input
+                  value={appId}
+                  onChange={(e) => setAppId(e.target.value.replace(/\D/g, ''))}
+                  placeholder="1702747864137149"
+                  inputMode="numeric"
+                  className={inputCls}
+                />
+              </label>
+              <label className="min-w-[200px] flex-1 text-sm">
+                <span className="mb-1.5 block text-xs font-semibold text-muted">Chave secreta do app</span>
+                <input
+                  type="password"
+                  value={appSecret}
+                  onChange={(e) => setAppSecret(e.target.value.trim())}
+                  placeholder={cfg?.podeTrocarCodigo ? '•••••••• guardada (deixe em branco para manter)' : '32 letras e números'}
+                  autoComplete="off"
+                  className={inputCls}
+                />
+              </label>
+              <label className="min-w-[200px] flex-1 text-sm">
                 <span className="mb-1.5 block text-xs font-semibold text-muted">Id da configuração (config_id)</span>
                 <input
                   value={configId}
@@ -220,11 +261,13 @@ export function ConectarMeta({ onConectou }: { onConectou: (c: Connection) => vo
               <button
                 type="button"
                 onClick={() => void salvarConfig()}
-                className="rounded-xl border border-border px-4 py-3 text-[13px] font-semibold text-muted transition-colors hover:border-blue2 hover:text-ink"
+                disabled={salvando}
+                className="rounded-xl border border-border px-4 py-3 text-[13px] font-semibold text-muted transition-colors hover:border-blue2 hover:text-ink disabled:cursor-wait"
               >
-                Salvar
+                {salvando ? 'Conferindo na Meta…' : 'Salvar'}
               </button>
             </div>
+            {salvou && <p className="mt-2 text-xs text-[#D7F264]">{salvou}</p>}
           </div>
         )}
       </div>
@@ -286,7 +329,7 @@ export function ConsertosOficial({ conexao, onAtualizar }: { conexao: Connection
   return (
     <div className="flex flex-col gap-2 border-t border-border px-5 py-3.5 text-xs text-muted">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span>{conexao.segredo_id ? '🔐 Conectado pelo botão da Meta' : '🔑 Token das variáveis de ambiente'}</span>
+        <span>{conexao.segredo_id ? '🔐 Token guardado no cofre' : '🔑 Token das variáveis de ambiente'}</span>
         {conexao.modo_meta === 'coexistencia' && <span>📱 Coexistência com o app</span>}
         {statusMeta && statusMeta !== 'CONNECTED' && (
           <span className="font-semibold text-[#ffb183]">Na Meta: {statusMeta} — registre com o PIN</span>

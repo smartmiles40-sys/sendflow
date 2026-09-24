@@ -50,22 +50,33 @@ disso, só **Template**. Por isso:
 
 ## Configurar (uma vez)
 
-### 1. Variáveis na Vercel (projeto `sendflow`)
+### 1. Dados do app da Meta — dentro do SendFlow (desde a 0021)
 
-| Variável | O que é |
-|---|---|
-| `META_APP_ID` | Id do app da Meta (pode ser o mesmo "Se tu For" do QS: `1702747864137149`) |
-| `META_APP_SECRET` | Segredo desse app — é o mesmo que confere a assinatura do webhook |
-| `META_WEBHOOK_VERIFY_TOKEN` | Uma senha qualquer que você inventa (a Meta repete ela ao verificar o webhook) |
-| `APP_URL` | `https://sendflow-smoky.vercel.app` (já existe) |
+Nada de variável na Vercel. Em **Conexões → Dados do app da Meta**:
 
-`META_ACCESS_TOKEN` virou opcional: número conectado pelo botão tem o próprio token no
-cofre (Supabase Vault).
+| Campo | Onde achar | Onde fica guardado |
+|---|---|---|
+| ID do app | developers.facebook.com → o app → Configurações do app → Básico (o "Se tu For" do QS é `1702747864137149`) | `app_settings.meta_cadastro` |
+| Chave secreta do app | mesma tela, botão "Mostrar" | **Vault** (`sf_cfg_guardar_segredo`); nunca volta para a tela |
+| config_id | passo 2 abaixo (só para o botão) | `app_settings.meta_cadastro` |
+
+Ao salvar, o SendFlow confere o par ID + chave na Meta — um dígito errado faria o webhook
+recusar toda mensagem, calado. O **verify token** do webhook o SendFlow inventa sozinho.
+As variáveis antigas (`META_APP_ID`, `META_APP_SECRET`, `META_WEBHOOK_VERIFY_TOKEN`,
+`META_ACCESS_TOKEN`) continuam valendo como reserva, se existirem.
+
+### 1b. Cadastro à mão (sem o botão) — o caminho mais curto para testar
+
+Conexões → *Cadastro à mão* → **API oficial**: nome, **Phone number ID**, **WABA ID** e o
+**token** (no painel da Meta: WhatsApp → Configuração da API). O token temporário serve
+para testar (morre em 24 h); para valer, gere um permanente em Configurações do negócio →
+Usuários do sistema. O SendFlow confere o número, guarda o token no Vault, assina o app na
+conta e aponta o webhook **do número** para cá — o mesmo que o botão faz.
 
 ### 2. No app da Meta (developers.facebook.com)
 
 1. **Login do Facebook para Empresas → Configurações → Criar configuração** do tipo
-   *Cadastro incorporado do WhatsApp*. Copie o **id** → cole em Conexões → *Ajustes do botão*.
+   *Cadastro incorporado do WhatsApp*. Copie o **id** → cole em Conexões → *Dados do app da Meta*.
    (Se usar o app do QS, o id já existe: `1067176032691119`.)
 2. **Login do Facebook → Configurações**: ligue *Login com o SDK do JavaScript* e adicione
    o domínio `sendflow-smoky.vercel.app` nos domínios permitidos.

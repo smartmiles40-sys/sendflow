@@ -41,8 +41,10 @@ export function ConexoesClient({
   const [oficial, setOficial] = useState<DadosOficial>({
     phone_number_id: '',
     waba_id: '',
+    token: '',
     msgs_por_segundo: 10,
   });
+  const [avisosCriacao, setAvisosCriacao] = useState<string[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   // Conexão cujo QR está aberto na tela. Um por vez: o QR expira em ~40s e manter
   // vários pedindo QR novo em paralelo só castiga a Evolution à toa.
@@ -54,11 +56,12 @@ export function ConexoesClient({
 
   const prontoParaCriar =
     Boolean(nome.trim()) &&
-    (tipo === 'cloud' ? oficialConfigurada && /^\d{5,}$/.test(oficial.phone_number_id) : configurada);
+    (tipo === 'cloud' ? /^\d{5,}$/.test(oficial.phone_number_id) && oficial.token.length >= 20 : configurada);
 
   async function criar() {
     setCriando(true);
     setErro(null);
+    setAvisosCriacao([]);
     try {
       const res = await fetch('/api/connections', {
         method: 'POST',
@@ -73,7 +76,8 @@ export function ConexoesClient({
       setConexoes((lista) => [...lista, body.conexao]);
       setNome('');
       if (tipo === 'cloud') {
-        setOficial({ phone_number_id: '', waba_id: '', msgs_por_segundo: 10 });
+        setOficial({ phone_number_id: '', waba_id: '', token: '', msgs_por_segundo: 10 });
+        setAvisosCriacao(Array.isArray(body.avisos) ? body.avisos : []);
         return;
       }
       // Já abre o QR: criar uma conexão de chip e não conectar o número não serve para nada.
@@ -131,12 +135,9 @@ export function ConexoesClient({
           role="alert"
           className="mb-6 rounded-xl2 border border-orange/30 bg-orange/[0.08] p-5 text-sm leading-relaxed text-[#ffb183]"
         >
-          <strong className="font-semibold">API oficial da Meta não configurada.</strong> Defina{' '}
-          <code className="font-mono text-xs">META_ACCESS_TOKEN</code>,{' '}
-          <code className="font-mono text-xs">META_APP_SECRET</code> e{' '}
-          <code className="font-mono text-xs">META_WEBHOOK_VERIFY_TOKEN</code> nas variáveis de
-          ambiente. O passo a passo está em{' '}
-          <code className="font-mono text-xs">docs/API-OFICIAL.md</code>.
+          <strong className="font-semibold">Faltam os dados do app da Meta.</strong> O número até
+          envia, mas sem o App ID e a chave secreta as respostas dos clientes e os confirmados de
+          entrega não chegam. Preencha em <b>Dados do app da Meta</b>, no cartão abaixo.
         </div>
       )}
 
@@ -173,12 +174,12 @@ export function ConexoesClient({
             onChange={(e) => setNome(e.target.value)}
             placeholder={tipo === 'cloud' ? 'Marketing oficial' : 'Comercial 1'}
             className={inputCls}
-            disabled={tipo === 'cloud' ? !oficialConfigurada : !configurada}
+            disabled={tipo === 'evolution' && !configurada}
           />
         </label>
 
         {tipo === 'cloud' && (
-          <CamposOficial dados={oficial} onChange={setOficial} desabilitado={!oficialConfigurada} />
+          <CamposOficial dados={oficial} onChange={setOficial} />
         )}
 
         <button
@@ -192,6 +193,16 @@ export function ConexoesClient({
           <p className="w-full text-sm text-[#ffb183]" role="alert">
             {erro}
           </p>
+        )}
+        {avisosCriacao.length > 0 && (
+          <div className="w-full text-xs leading-relaxed text-[#ffb183]" role="alert">
+            <p className="font-semibold">Número cadastrado, mas com pendências:</p>
+            <ul className="mt-1 list-disc pl-5">
+              {avisosCriacao.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
 

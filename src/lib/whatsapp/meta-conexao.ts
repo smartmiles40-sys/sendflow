@@ -23,12 +23,14 @@
 import { createServerClient } from '../supabase/server';
 import { urlPublica } from '../url';
 import { chamar, CloudError, esquecerToken } from './cloud';
+import { lerConfigMeta } from './meta-config';
 import type { Connection } from '../types';
 
 export interface ConfigCadastro {
   appId: string | null;
   configId: string | null;
-  /** Sem o segredo do app o código não vira token: o botão nem deve aparecer. */
+  /** Sem o segredo do app o código não vira token e o webhook recusa tudo. O valor
+   *  nunca sai do servidor — a tela só fica sabendo SE ele existe. */
   podeTrocarCodigo: boolean;
   /** Sem o verify token, a Meta não aceita apontar o webhook para cá. */
   webhookPronto: boolean;
@@ -40,42 +42,20 @@ export function urlDoWebhookMeta(): string {
 }
 
 export async function lerConfigCadastro(): Promise<ConfigCadastro> {
-  let configId: string | null = null;
-  try {
-    const { data } = await createServerClient()
-      .from('app_settings')
-      .select('valor')
-      .eq('chave', 'meta_cadastro')
-      .maybeSingle();
-    const v = (data?.valor ?? {}) as { config_id?: unknown };
-    configId = v.config_id ? String(v.config_id) : null;
-  } catch {
-    configId = null;
-  }
+  const c = await lerConfigMeta();
   return {
-    appId: (process.env.META_APP_ID ?? '').trim() || null,
-    configId: configId || (process.env.META_CONFIG_ID ?? '').trim() || null,
-    podeTrocarCodigo: Boolean((process.env.META_APP_SECRET ?? '').trim()),
-    webhookPronto: Boolean((process.env.META_WEBHOOK_VERIFY_TOKEN ?? '').trim()),
+    appId: c.appId,
+    configId: c.configId,
+    podeTrocarCodigo: Boolean(c.appSecret),
+    webhookPronto: Boolean(c.verifyToken),
     urlWebhook: urlDoWebhookMeta(),
   };
 }
 
-export async function salvarConfigId(configId: string): Promise<{ ok: true } | { erro: string }> {
-  const id = String(configId ?? '').trim();
-  if (id && !/^\d{5,25}$/.test(id)) return { erro: 'O id da configuração tem só números.' };
-  const { error } = await createServerClient()
-    .from('app_settings')
-    .upsert({ chave: 'meta_cadastro', valor: { config_id: id || null } }, { onConflict: 'chave' });
-  if (error) return { erro: error.message };
-  return { ok: true };
-}
-
 /** Código de uso único (vale ~30 s) → token de negócio. */
 async function trocarCodigo(code: string): Promise<{ token: string } | { erro: string }> {
-  const appId = (process.env.META_APP_ID ?? '').trim();
-  const secret = (process.env.META_APP_SECRET ?? '').trim();
-  if (!appId || !secret) return { erro: 'Faltam META_APP_ID e META_APP_SECRET nas variáveis de ambiente.' };
+  const { appId, appSecret: secret } = await lerConfigMeta();
+  if (!appId || !secret) return { erro: 'Faltam o App ID e a chave secreta do app em Conexões → Dados do app da Meta.' };
   const versao = (process.env.META_API_VERSION ?? 'v23.0').trim() || 'v23.0';
   const url =
     `https://graph.facebook.com/${versao}/oauth/access_token?client_id=${encodeURIComponent(appId)}` +
@@ -102,8 +82,8 @@ export async function apontarWebhookDoNumero(
   phoneId: string,
   token?: string | null,
 ): Promise<{ ok: true; url: string } | { erro: string }> {
-  const verify = (process.env.META_WEBHOOK_VERIFY_TOKEN ?? '').trim();
-  if (!verify) return { erro: 'Falta META_WEBHOOK_VERIFY_TOKEN nas variáveis de ambiente.' };
+  const verify = (await lerConfigMeta()).verifyToken;
+  if (!verify) return { erro: 'Não consegui gerar o código de verificação do webhook (banco fora do ar?). Tente de novo.' };
   const url = urlDoWebhookMeta();
   if (!url.startsWith('https://')) {
     return { erro: `O endereço público do SendFlow não é https (${url}). Defina APP_URL.` };

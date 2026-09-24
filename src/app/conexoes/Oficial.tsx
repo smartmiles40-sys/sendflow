@@ -16,6 +16,7 @@ import { inputCls } from '@/components/ui';
 export interface DadosOficial {
   phone_number_id: string;
   waba_id: string;
+  token: string;
   msgs_por_segundo: number;
 }
 
@@ -58,6 +59,21 @@ export function CamposOficial({
         />
       </label>
 
+      <label className="w-full text-sm">
+        <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+          Token de acesso
+        </span>
+        <input
+          type="password"
+          value={dados.token}
+          onChange={(e) => onChange({ ...dados, token: e.target.value.trim() })}
+          placeholder="EAAG…"
+          autoComplete="off"
+          className={inputCls}
+          disabled={desabilitado}
+        />
+      </label>
+
       <label className="w-[150px] text-sm">
         <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.08em] text-muted">
           Msgs por segundo
@@ -75,8 +91,9 @@ export function CamposOficial({
 
       <p className="w-full text-xs leading-relaxed text-muted">
         Os dois IDs estão no <b className="text-ink">Meta Business Manager → WhatsApp → Configuração da API</b>.
-        O <b className="text-ink">ID do número</b> é só dígitos e não é o telefone. O token fica nas variáveis
-        de ambiente (<code className="font-mono">META_ACCESS_TOKEN</code>), nunca aqui.
+        O <b className="text-ink">ID do número</b> é só dígitos e não é o telefone. Para testar, serve o token
+        temporário dessa mesma tela (morre em 24 h); para valer, gere um <b className="text-ink">permanente</b> em
+        Configurações do negócio → Usuários do sistema. O token vai para o cofre do banco e não aparece mais.
       </p>
     </>
   );

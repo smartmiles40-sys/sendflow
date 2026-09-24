@@ -14,17 +14,13 @@
 // Por isso os dois convivem: grupo é Evolution, massa é aqui. A regra está no banco
 // (0019) e na validação da API, não na boa vontade de quem usa a tela.
 //
-// O token NÃO fica no banco: `META_ACCESS_TOKEN` é lida no servidor, como a
-// EVOLUTION_API_KEY. O que o banco guarda é o `phone_number_id`, que sozinho não
-// dá acesso a nada.
+// O token de cada número fica no Vault do Supabase (0020), nunca numa coluna comum;
+// `META_ACCESS_TOKEN` do ambiente é só o reserva. Os dados do app (App ID, segredo,
+// verify token) moram em `meta-config.ts` desde a 0021.
 
 export interface CloudConfig {
   token: string;
   versao: string;
-  /** Segredo do app, para conferir a assinatura do webhook da Meta. */
-  appSecret: string;
-  /** Token de verificação que a Meta manda no GET ao cadastrar o webhook. */
-  verifyToken: string;
 }
 
 /**
@@ -76,36 +72,21 @@ export function lerConfigCloud(tokenDoNumero?: string | null): CloudConfig {
   const token = (tokenDoNumero ?? '').trim() || (process.env.META_ACCESS_TOKEN ?? '').trim();
   if (!token) {
     throw new CloudError(
-      'Este número não tem token: conecte-o pelo botão "Conectar com a Meta" em Conexões (ou defina META_ACCESS_TOKEN).',
+      'Este número não tem token: conecte-o pelo botão "Conectar com a Meta" em Conexões, ou cadastre-o à mão colando o token.',
       { status: 503, permanente: true },
     );
   }
   return {
     token,
     versao: (process.env.META_API_VERSION ?? VERSAO_PADRAO).trim() || VERSAO_PADRAO,
-    appSecret: (process.env.META_APP_SECRET ?? '').trim(),
-    verifyToken: (process.env.META_WEBHOOK_VERIFY_TOKEN ?? '').trim(),
   };
-}
-
-/** Dá para falar com a Meta? Usado pela tela para explicar o que falta configurar. */
-export function cloudConfigurada(): boolean {
-  return Boolean((process.env.META_ACCESS_TOKEN ?? '').trim()) || cadastroMetaConfigurado();
-}
-
-/**
- * O botão "Conectar com a Meta" (Cadastro Incorporado) funciona? Precisa do id do app
- * (público) e do segredo do app (para trocar o código pelo token, no servidor).
- */
-export function cadastroMetaConfigurado(): boolean {
-  return Boolean((process.env.META_APP_ID ?? '').trim() && (process.env.META_APP_SECRET ?? '').trim());
 }
 
 // ── O token de cada número ───────────────────────────────────────────────────────
 //
-// Desde a 0020 cada número conectado pelo botão da Meta tem o SEU token, guardado no
-// Vault do Supabase. O de ambiente (META_ACCESS_TOKEN) virou o reserva — vale para
-// quem cadastrou à mão, do jeito antigo. Cache curto: o motor manda dezenas de
+// Desde a 0020 cada número tem o SEU token, guardado no Vault do Supabase — venha ele
+// do botão da Meta ou colado no cadastro à mão. O de ambiente (META_ACCESS_TOKEN) é só
+// o reserva. Cache curto: o motor manda dezenas de
 // mensagens por segundo e não pode ir ao Vault a cada uma.
 
 const cacheToken = new Map<string, { token: string | null; ate: number }>();

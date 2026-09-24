@@ -1,7 +1,7 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { provedorAtivo } from '@/lib/email/provider';
 import { evolutionConfigurada } from '@/lib/whatsapp/evolution';
-import { cloudConfigurada } from '@/lib/whatsapp/cloud';
+import { cloudConfigurada } from '@/lib/whatsapp/meta-config';
 import { urlPublica, urlPublicaEstavel } from '@/lib/url';
 import { loginExigido, segredoConfigurado } from '@/lib/auth';
 import { ConfiguracoesClient } from './ConfiguracoesClient';
@@ -53,7 +53,7 @@ export default async function ConfiguracoesPage() {
         url_publica: urlPublica(),
         url_estavel: urlPublicaEstavel(),
         evolution: evolutionConfigurada(),
-        oficial: cloudConfigurada(),
+        oficial: await cloudConfigurada(),
         email: provedorAtivo(),
         login: loginExigido(),
         auth_secret: segredoConfigurado(),
