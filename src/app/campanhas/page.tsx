@@ -9,6 +9,7 @@ export default async function CampanhasPage() {
   const { data } = await supabase
     .from('campaigns')
     .select('*')
+    .eq('alvo', 'grupos')
     .order('enviar_em', { ascending: true });
 
   return <CampaignsClient initial={(data ?? []) as Campaign[]} />;

@@ -122,7 +122,11 @@ function NovaCampanha() {
   // Audience picker
   // Alvo: os grupos cadastrados (como sempre) ou os contatos de uma lista (novo).
   // São excludentes — uma campanha vai para um ou para o outro, nunca para os dois.
-  const [alvo, setAlvo] = useState<'grupos' | 'contatos'>('grupos');
+  const [alvo, setAlvo] = useState<'grupos' | 'contatos'>(
+    searchParams.get('alvo') === 'contatos' ? 'contatos' : 'grupos',
+  );
+  // Cada alvo tem a sua lista: grupos em Gestão de Grupos, contatos no ManyChat.
+  const voltarPara = alvo === 'contatos' ? '/disparos' : '/campanhas';
   const [listas, setListas] = useState<Lista[]>([]);
   const [listIds, setListIds] = useState<string[]>([]);
   // Número que dispara. Vazio = o motor escolhe (a conexão do grupo, ou a primeira
@@ -492,7 +496,7 @@ function NovaCampanha() {
           }),
         });
         if (res.ok) {
-          router.push('/campanhas');
+          router.push(voltarPara);
           return;
         }
         const body = (await res.json().catch(() => ({}))) as {
@@ -514,7 +518,7 @@ function NovaCampanha() {
         body: JSON.stringify({ draft, asDraft, audience_id, group_ids, ...alvoBody }),
       });
       if (res.ok) {
-        router.push('/campanhas');
+        router.push(voltarPara);
         return;
       }
       const body = (await res.json().catch(() => ({}))) as {
@@ -642,7 +646,7 @@ function NovaCampanha() {
         }
       }
       if (failures === 0) {
-        router.push('/campanhas');
+        router.push(voltarPara);
         return;
       }
       setSubmitError(`${failures} de ${total} falharam. As demais foram agendadas — revise e tente de novo.`);
@@ -659,7 +663,7 @@ function NovaCampanha() {
   return (
     <div>
       <div className="mb-1.5 text-[13px] text-muted">
-        <Link href="/campanhas" className="transition-colors hover:text-ink">
+        <Link href={voltarPara} className="transition-colors hover:text-ink">
           Campanhas
         </Link>{' '}
         / <b className="font-semibold text-ink">{editing ? 'Editar campanha' : 'Nova campanha'}</b>
@@ -1090,7 +1094,7 @@ function NovaCampanha() {
             )}
             {editing && (
               <Link
-                href="/campanhas"
+                href={voltarPara}
                 className="rounded-xl border border-border px-5 py-[13px] text-sm font-semibold text-ink transition-colors hover:bg-white/5"
               >
                 Cancelar

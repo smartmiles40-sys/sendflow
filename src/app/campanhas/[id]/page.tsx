@@ -61,8 +61,8 @@ export default async function ResultadoCampanhaPage({
   return (
     <div className="max-w-5xl">
       <header className="mb-6">
-        <Link href="/campanhas" className="mb-2 inline-block text-xs font-semibold text-muted hover:text-ink">
-          ← Campanhas
+        <Link href={soGrupos ? '/campanhas' : '/disparos'} className="mb-2 inline-block text-xs font-semibold text-muted hover:text-ink">
+          ← {soGrupos ? 'Campanhas' : 'Disparo em massa'}
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">

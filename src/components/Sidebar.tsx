@@ -6,12 +6,12 @@ import { useEffect, useState } from 'react';
 import { Logo } from './Logo';
 
 /**
- * Navegação agrupada por CANAL, e não por tipo de tela.
+ * Navegação em 3 MÓDULOS (24/09/2026): Gestão de Grupos, ManyChat e E-mail.
  *
- * O sistema cresceu de "disparador de WhatsApp" para dois canais mais uma base de
- * contatos compartilhada. Uma lista plana de nove itens esconderia a coisa mais
- * importante da nova estrutura: e-mail e WhatsApp são irmãos, e os contatos servem aos
- * dois. O painel fica fora dos grupos porque é o destino padrão, não um canal.
+ * O corte não é por canal técnico (Evolution x Cloud API), é por TRABALHO: quem cuida
+ * das lives e dos grupos vive no primeiro; quem cuida de robô, conversa e disparo em
+ * massa oficial vive no segundo; e-mail marketing é o terceiro. Contatos e Conexões
+ * ficam fora porque servem aos três.
  */
 const grupos: { titulo: string | null; itens: { href: string; label: string; icon: string }[] }[] = [
   {
@@ -19,17 +19,23 @@ const grupos: { titulo: string | null; itens: { href: string; label: string; ico
     itens: [{ href: '/painel', label: 'Painel', icon: '📊' }],
   },
   {
-    titulo: 'WhatsApp',
+    titulo: 'Gestão de Grupos',
     itens: [
-      { href: '/conversas', label: 'Conversas', icon: '💬' },
-      { href: '/automacoes', label: 'Automações', icon: '⚡' },
-      { href: '/celular', label: 'Celular', icon: '📱' },
+      { href: '/grupos', label: 'Grupos', icon: '👥' },
       { href: '/campanhas', label: 'Campanhas', icon: '📣' },
       { href: '/cadencias', label: 'Cadências', icon: '🧭' },
       { href: '/sequencias', label: 'Sequências', icon: '🔁' },
       { href: '/recorrencias', label: 'Recorrentes', icon: '🔄' },
-      { href: '/grupos', label: 'Grupos', icon: '👥' },
       { href: '/publicos', label: 'Públicos', icon: '⭐' },
+      { href: '/celular', label: 'Celular', icon: '📱' },
+    ],
+  },
+  {
+    titulo: 'ManyChat',
+    itens: [
+      { href: '/conversas', label: 'Conversas', icon: '💬' },
+      { href: '/automacoes', label: 'Automações', icon: '⚡' },
+      { href: '/disparos', label: 'Disparo em massa', icon: '🚀' },
     ],
   },
   {

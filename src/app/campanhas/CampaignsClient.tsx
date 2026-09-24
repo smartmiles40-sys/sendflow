@@ -28,7 +28,11 @@ const emptyMessage: Record<Tab, string> = {
   rascunhos: 'Sem rascunhos salvos.',
 };
 
-export function CampaignsClient({ initial }: { initial: Campaign[] }) {
+/**
+ * A mesma lista serve aos dois módulos: em Gestão de Grupos mostra as campanhas para
+ * GRUPOS (chip); no ManyChat, o disparo em massa para CONTATOS (API oficial).
+ */
+export function CampaignsClient({ initial, modo = 'grupos' }: { initial: Campaign[]; modo?: 'grupos' | 'contatos' }) {
   const [cat, setCat] = useState<CatTab>('todas');
   const [tab, setTab] = useState<Tab>('agendadas');
   // Own the list so row actions can mutate it in place (update/remove) without a full reload.
@@ -118,16 +122,20 @@ export function CampaignsClient({ initial }: { initial: Campaign[] }) {
     <div>
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-[26px] font-semibold tracking-[-0.01em]">Campanhas</h1>
+          <h1 className="font-display text-[26px] font-semibold tracking-[-0.01em]">
+            {modo === 'contatos' ? 'Disparo em massa' : 'Campanhas'}
+          </h1>
           <p className="mt-1.5 text-sm text-muted">
-            Crie disparos pontuais para os grupos e acompanhe o que já saiu.
+            {modo === 'contatos'
+              ? 'Suba a lista em Contatos, escolha um template aprovado e dispare pelo número oficial da Meta.'
+              : 'Crie disparos pontuais para os grupos e acompanhe o que já saiu.'}
           </p>
         </div>
         <Link
-          href="/campanhas/nova"
+          href={modo === 'contatos' ? '/campanhas/nova?alvo=contatos' : '/campanhas/nova'}
           className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue px-[18px] py-3 text-sm font-semibold text-on-blue shadow-[0_6px_20px_rgba(215,242,100,.22)] transition-colors hover:bg-blue-hover"
         >
-          ＋ Nova campanha
+          {modo === 'contatos' ? '＋ Novo disparo' : '＋ Nova campanha'}
         </Link>
       </div>
 
