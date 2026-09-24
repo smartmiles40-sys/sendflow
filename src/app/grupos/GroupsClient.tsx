@@ -185,7 +185,7 @@ export function GroupsClient({ initial, initialTags }: { initial: Group[]; initi
             Conexões
           </Link>{' '}
           e clique em <b>Puxar grupos</b>. Eles chegam desativados — você liga um a um os que
-          devem receber campanha. Use as <b>tags</b> para separar por live, turma ou expedição.
+          devem receber campanha. Use as <b>tags</b> para separar por live ou turma.
         </p>
       </header>
 

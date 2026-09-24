@@ -43,7 +43,7 @@ export function WhatsAppPreview({
         <div className="flex items-center gap-2.5 bg-[#1f2c34] px-3.5 py-3">
           <Image src="/stfv-selo.png" alt="" width={34} height={34} className="h-[34px] w-[34px] shrink-0 rounded-full" />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-[#e9edef]">Expedição Japão — Turma Outubro</div>
+            <div className="truncate text-sm font-semibold text-[#e9edef]">Live Japão — Turma Outubro</div>
             <div className="text-[11px] text-[#8696a0]">você, +47 participantes</div>
           </div>
         </div>
