@@ -47,8 +47,21 @@ export default async function ContatosPage() {
       .in('status_email', ['descadastrado', 'bounce', 'spam']),
   ]);
 
+  // Opções do filtro avançado: campos personalizados, campanhas de e-mail (para
+  // "abriu a campanha X") e as tags que existem hoje na base.
+  const [{ data: campos }, { data: campanhas }, { data: tags }] = await Promise.all([
+    supabase.from('contact_fields').select('chave,rotulo').order('rotulo', { ascending: true }),
+    supabase.from('email_campaigns').select('id,nome').neq('status', 'rascunho').order('criado_em', { ascending: false }).limit(200),
+    supabase.rpc('sf_tags_contato'),
+  ]);
+
   return (
     <ContatosClient
+      opcoes={{
+        campos: (campos ?? []) as { chave: string; rotulo: string }[],
+        campanhas: (campanhas ?? []) as { id: string; nome: string }[],
+        tags: ((tags ?? []) as { tag: string }[]).map((t) => t.tag),
+      }}
       inicial={(contatos ?? []) as Contact[]}
       total={count ?? 0}
       listas={comTotal}

@@ -3,68 +3,52 @@ import { createServerClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/http';
 import { emailValido, normalizarEmail, separarTags } from '@/lib/contatos';
 import { normalizarTelefoneBR, telefoneValido } from '@/lib/whatsapp/jid';
+import { REGRAS_VAZIAS, regrasDosFiltros, somarFiltros, validarRegras, type Regras } from '@/lib/segmentos';
+import { filtrarContatos, POR_PAGINA } from '@/lib/segmentos-servidor';
 
 export const dynamic = 'force-dynamic';
 
-/** Teto por página. Protege a tela de tentar desenhar 40 mil linhas de uma vez. */
-const POR_PAGINA = 100;
-
 /**
- * Lista contatos com busca, filtro por lista/tag e paginação.
+ * Lista contatos com busca, filtros rápidos (lista/tag/situação), regras de segmento
+ * (`regras` em JSON ou `segmento` = id salvo) e paginação.
  *
- * A paginação não é enfeite: o PostgREST corta qualquer resposta em 1000 linhas sem
- * avisar, então uma tela "sem paginação" mentiria silenciosamente a partir do
- * milésimo contato.
+ * Tudo vira UMA consulta no banco (sf_filtrar_contatos, 0023). Antes o filtro por lista
+ * buscava os ids dos membros e mandava de volta num `in (...)` — e o PostgREST corta em
+ * 1000 linhas sem avisar: a lista de 1.500 mostrava 1.000.
  */
 export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
-  const busca = (params.get('busca') ?? '').trim();
-  const lista = params.get('lista');
-  const tag = params.get('tag');
-  const status = params.get('status_email');
   const pagina = Math.max(0, Number(params.get('pagina') ?? 0) || 0);
-
   const supabase = createServerClient();
 
-  // Filtrar por lista exige saber quem são os membros antes — é uma tabela de ligação,
-  // e o PostgREST não filtra o principal por uma relação N:N em uma consulta só.
-  let idsDaLista: string[] | null = null;
-  if (lista) {
-    const { data } = await supabase
-      .from('list_members')
-      .select('contact_id')
-      .eq('list_id', lista)
-      .limit(1000);
-    idsDaLista = ((data ?? []) as { contact_id: string }[]).map((m) => m.contact_id);
-    if (!idsDaLista.length) {
-      return NextResponse.json({ contatos: [], total: 0, pagina, porPagina: POR_PAGINA });
+  let base: Regras = REGRAS_VAZIAS;
+  const segmento = params.get('segmento');
+  if (segmento) {
+    const { data } = await supabase.from('segments').select('regras').eq('id', segmento).maybeSingle();
+    if (!data) return NextResponse.json({ error: 'Segmento não encontrado.' }, { status: 404 });
+    base = data.regras as Regras;
+  } else if (params.get('regras')) {
+    let bruto: unknown;
+    try {
+      bruto = JSON.parse(params.get('regras') ?? '{}');
+    } catch {
+      return NextResponse.json({ error: 'Regras inválidas.' }, { status: 400 });
     }
+    const v = validarRegras(bruto);
+    if (!v.ok) return NextResponse.json({ error: v.erro }, { status: 400 });
+    base = v.regras;
   }
 
-  let q = supabase
-    .from('contacts')
-    .select('*', { count: 'exact' })
-    .order('criado_em', { ascending: false })
-    .range(pagina * POR_PAGINA, pagina * POR_PAGINA + POR_PAGINA - 1);
+  // Os filtros rápidos sempre somam (E) ao segmento — "deste segmento, só os da lista X".
+  // O segmento entra como GRUPO, para um "qualquer" dele não engolir o filtro rápido.
+  const rapidos = regrasDosFiltros({ lista: params.get('lista'), tag: params.get('tag'), status_email: params.get('status_email') });
+  const regras = somarFiltros(base, rapidos);
 
-  if (idsDaLista) q = q.in('id', idsDaLista);
-  if (tag) q = q.contains('tags', [tag]);
-  if (status) q = q.eq('status_email', status);
-  if (busca) {
-    // `%` e `,` têm significado dentro do `or` do PostgREST; escapar evita que uma busca
-    // por "50%" vire um filtro maluco (ou um erro de sintaxe vindo do servidor).
-    const seguro = busca.replace(/[%,()]/g, ' ');
-    q = q.or(`nome.ilike.%${seguro}%,email.ilike.%${seguro}%,telefone.ilike.%${seguro}%,empresa.ilike.%${seguro}%`);
-  }
+  const r = await filtrarContatos(supabase, regras, { busca: params.get('busca'), pagina });
+  if ('erro' in r) return NextResponse.json({ error: r.erro }, { status: 400 });
+  const { contatos, total } = r;
 
-  const { data, error, count } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({
-    contatos: data ?? [],
-    total: count ?? 0,
-    pagina,
-    porPagina: POR_PAGINA,
-  });
+  return NextResponse.json({ contatos, total, pagina, porPagina: POR_PAGINA });
 }
 
 export async function POST(req: Request) {

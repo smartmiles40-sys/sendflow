@@ -6,6 +6,7 @@ import { Orcamento } from '@/lib/dispatch/ritmo';
 import { refillSePreciso } from '@/lib/dispatch/refill-periodico';
 import { avisarSePreciso } from '@/lib/dispatch/alerta';
 import { rodarAutomacoes } from '@/lib/automacao/motor';
+import { recalcularScoreSePreciso } from '@/lib/dispatch/score';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,11 @@ async function executar(req: Request) {
     return null;
   });
 
+  const scoreRecalculado = await recalcularScoreSePreciso(supabase, agora).catch((e) => {
+    console.error('[tick] recálculo da pontuação falhou:', e);
+    return null;
+  });
+
   const restante = (whatsapp?.pendentes ?? 0) + (email?.pendentes ?? 0);
 
   // O vigia vem por último e nunca lança: se o motor parou, alguém precisa saber por
@@ -119,6 +125,7 @@ async function executar(req: Request) {
     whatsapp,
     email,
     recorrentes,
+    score_recalculado: scoreRecalculado,
   });
 }
 

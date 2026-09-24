@@ -12,9 +12,13 @@ export interface EntradaEmailCampanha {
   html: string;
   texto: string | null;
   list_ids: string[];
+  /** Segmento salvo (0023) — alternativa às listas como público. */
+  segment_id: string | null;
   tags: string[];
   enviar_em: string | null;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Normaliza e valida o corpo de uma campanha de e-mail.
@@ -39,6 +43,9 @@ export function parseEmailCampanha(
   const remetenteNome = String(body.remetente_nome ?? '').trim();
   const html = String(body.html ?? '');
   const listIds = Array.isArray(body.list_ids) ? (body.list_ids as string[]).filter(Boolean) : [];
+  const segmentoBruto = String(body.segment_id ?? '').trim();
+  const segmentId = UUID.test(segmentoBruto) ? segmentoBruto : null;
+  if (segmentoBruto && !segmentId) errors.push({ field: 'segment_id', message: 'Segmento inválido.' });
 
   if (!opcoes.rascunho) {
     if (!assunto) errors.push({ field: 'assunto', message: 'Escreva o assunto do e-mail.' });
@@ -52,8 +59,8 @@ export function parseEmailCampanha(
       errors.push({ field: 'remetente_email', message: 'E-mail do remetente inválido.' });
     }
     if (!html.trim()) errors.push({ field: 'html', message: 'O e-mail está vazio.' });
-    if (!listIds.length) {
-      errors.push({ field: 'list_ids', message: 'Escolha ao menos uma lista para receber.' });
+    if (!listIds.length && !segmentId) {
+      errors.push({ field: 'list_ids', message: 'Escolha ao menos uma lista ou um segmento para receber.' });
     }
   }
 
@@ -97,6 +104,7 @@ export function parseEmailCampanha(
       html,
       texto: String(body.texto ?? '').trim() || null,
       list_ids: listIds,
+      segment_id: segmentId,
       tags: Array.isArray(body.tags) ? (body.tags as string[]).map((t) => String(t).trim().toLowerCase()).filter(Boolean) : [],
       enviar_em: enviarEm,
     },

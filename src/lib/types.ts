@@ -255,6 +255,8 @@ export interface Contact {
   descadastrado_em: string | null;
   /** Quando a pessoa pediu para sair do WhatsApp (respondeu "PARAR"). */
   optout_whatsapp_em?: string | null;
+  /** Pontuação por engajamento (0023) — pesos em app_settings.score. */
+  score?: number;
   criado_em: string;
   atualizado_em: string;
 }
@@ -289,6 +291,8 @@ export interface EmailCampaign {
   html: string;
   texto: string | null;
   list_ids: string[];
+  /** Segmento salvo como público (0023). Com listas junto, vale quem está nos dois. */
+  segment_id?: string | null;
   tags: string[];
   status: EmailCampaignStatus;
   enviar_em: string | null;

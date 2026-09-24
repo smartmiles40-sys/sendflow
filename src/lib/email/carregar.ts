@@ -22,6 +22,16 @@ export async function carregarDadosEditor(campanhaId?: string): Promise<DadosEdi
       : Promise.resolve({ data: null }),
   ]);
 
+  // Segmentos com o total de AGORA — o número que a pessoa vê ao escolher o público.
+  const { data: segs } = await supabase.from('segments').select('id,nome,regras').order('nome', { ascending: true });
+  const segmentos = await Promise.all(
+    ((segs ?? []) as { id: string; nome: string; regras: unknown }[]).map(async (s) => {
+      const { data: r } = await supabase.rpc('sf_filtrar_contatos', { p_regras: s.regras, p_limite: 1, p_offset: 0 });
+      const linha = ((r ?? []) as { total: number }[])[0];
+      return { id: s.id, nome: s.nome, total: linha ? Number(linha.total) : 0 };
+    }),
+  );
+
   const comTotal = await Promise.all(
     ((listas ?? []) as Lista[]).map(async (l) => {
       const { count } = await supabase
@@ -37,6 +47,7 @@ export async function carregarDadosEditor(campanhaId?: string): Promise<DadosEdi
   return {
     campanha: (campanhaRes.data as EmailCampaign | null) ?? null,
     listas: comTotal,
+    segmentos,
     modelos: (modelos ?? []) as EmailTemplate[],
     remetentePadrao: {
       nome: remetente.nome ?? '',

@@ -33,6 +33,7 @@ const VARIAVEIS = [
 export interface DadosEditor {
   campanha: EmailCampaign | null;
   listas: Lista[];
+  segmentos: { id: string; nome: string; total: number }[];
   modelos: EmailTemplate[];
   remetentePadrao: { nome: string; email: string; responder_para: string };
   provedor: string | null;
@@ -52,6 +53,9 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
   const [responderPara, setResponderPara] = useState(c?.responder_para ?? dados.remetentePadrao.responder_para);
   const [html, setHtml] = useState(c?.html ?? '');
   const [listIds, setListIds] = useState<string[]>(c?.list_ids ?? []);
+  // Público por LISTAS (como sempre) ou por um SEGMENTO salvo em Contatos → Segmentos.
+  const [modoPublico, setModoPublico] = useState<'listas' | 'segmento'>(c?.segment_id ? 'segmento' : 'listas');
+  const [segmentId, setSegmentId] = useState<string>(c?.segment_id ?? '');
   const [agendar, setAgendar] = useState(Boolean(c?.enviar_em && c?.status === 'agendada'));
   const [enviarEm, setEnviarEm] = useState(paraCampoLocal(c?.enviar_em));
 
@@ -63,8 +67,11 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
   const [enviandoTeste, setEnviandoTeste] = useState(false);
 
   const totalPublico = useMemo(
-    () => dados.listas.filter((l) => listIds.includes(l.id)).reduce((t, l) => t + (l.total ?? 0), 0),
-    [dados.listas, listIds],
+    () =>
+      modoPublico === 'segmento'
+        ? (dados.segmentos.find((s) => s.id === segmentId)?.total ?? 0)
+        : dados.listas.filter((l) => listIds.includes(l.id)).reduce((t, l) => t + (l.total ?? 0), 0),
+    [dados.listas, dados.segmentos, listIds, modoPublico, segmentId],
   );
 
   async function salvar(comoAgendada: boolean) {
@@ -81,7 +88,8 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
         remetente_email: remetenteEmail,
         responder_para: responderPara,
         html,
-        list_ids: listIds,
+        list_ids: modoPublico === 'listas' ? listIds : [],
+        segment_id: modoPublico === 'segmento' ? segmentId : null,
         agendar: comoAgendada,
         enviar_em: comoAgendada && agendar ? new Date(enviarEm).toISOString() : comoAgendada ? new Date().toISOString() : null,
         ...(comoAgendada ? {} : { status: 'rascunho' }),
@@ -134,7 +142,8 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
     }
   }
 
-  const podeAgendar = Boolean(nome && assunto && html.trim() && listIds.length && remetenteEmail);
+  const temPublico = modoPublico === 'segmento' ? Boolean(segmentId) : listIds.length > 0;
+  const podeAgendar = Boolean(nome && assunto && html.trim() && temPublico && remetenteEmail);
 
   return (
     <div className="max-w-6xl">
@@ -291,7 +300,44 @@ export function EmailEditor({ dados }: { dados: DadosEditor }) {
           </Bloco>
 
           <Bloco titulo="Quem vai receber">
-            {dados.listas.length === 0 ? (
+            <div className="mb-4 flex gap-2">
+              <SegButton on={modoPublico === 'listas'} onClick={() => setModoPublico('listas')}>
+                Listas
+              </SegButton>
+              <SegButton on={modoPublico === 'segmento'} onClick={() => setModoPublico('segmento')}>
+                Segmento
+              </SegButton>
+            </div>
+            {modoPublico === 'segmento' ? (
+              dados.segmentos.length === 0 ? (
+                <p className="text-sm text-muted">
+                  Nenhum segmento salvo. Crie em <b>Contatos → Filtro avançado → Salvar como segmento</b> (ex.: abriu algum
+                  e-mail nos últimos 30 dias e tem a tag &quot;live-japao&quot;).
+                </p>
+              ) : (
+                <>
+                  <select
+                    value={segmentId}
+                    onChange={(e) => setSegmentId(e.target.value)}
+                    aria-label="Segmento"
+                    className={`${inputCls} mb-3`}
+                  >
+                    <option value="">Escolha o segmento…</option>
+                    {dados.segmentos.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nome} — {formatarNumero(s.total)} contatos
+                      </option>
+                    ))}
+                  </select>
+                  {erros.list_ids && <p className="mb-3 text-xs text-[#ffb183]">{erros.list_ids}</p>}
+                  <p className="text-xs leading-relaxed text-muted">
+                    <b className="text-ink">{formatarNumero(totalPublico)}</b> contatos casam com o segmento agora. A lista de
+                    quem recebe é fechada na hora do envio — quem entrar no segmento até lá recebe também. Descadastrados,
+                    bounce e spam ficam de fora.
+                  </p>
+                </>
+              )
+            ) : dados.listas.length === 0 ? (
               <p className="text-sm text-muted">
                 Nenhuma lista cadastrada. Crie uma em <b>Contatos e listas</b> e importe seu CSV.
               </p>

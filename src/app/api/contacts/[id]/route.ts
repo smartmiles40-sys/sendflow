@@ -19,7 +19,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!contato) return NextResponse.json({ error: 'Contato não encontrado.' }, { status: 404 });
 
-  const [{ data: engajamento }, { data: emails }, { data: whats }, { data: listas }] =
+  const [{ data: engajamento }, { data: emails }, { data: whats }, { data: listas }, { data: eventos }] =
     await Promise.all([
       supabase.from('vw_contato_engajamento').select('*').eq('contact_id', id).maybeSingle(),
       supabase
@@ -35,6 +35,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         .order('enviado_em', { ascending: false })
         .limit(20),
       supabase.from('list_members').select('list_id,lists(id,nome,cor)').eq('contact_id', id),
+      supabase
+        .from('contact_eventos')
+        .select('id,tipo,detalhe,criado_em')
+        .eq('contact_id', id)
+        .order('criado_em', { ascending: false })
+        .limit(200),
     ]);
 
   return NextResponse.json({
@@ -43,6 +49,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     emails: emails ?? [],
     whatsapp: whats ?? [],
     listas: listas ?? [],
+    eventos: eventos ?? [],
   });
 }
 
@@ -135,12 +142,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!data) return NextResponse.json({ error: 'Contato não encontrado.' }, { status: 404 });
 
   if (Array.isArray(body.list_ids)) {
-    // Substitui o conjunto de listas: apaga as que saíram, insere as que entraram.
-    await supabase.from('list_members').delete().eq('contact_id', id);
-    if (body.list_ids.length) {
-      await supabase
-        .from('list_members')
-        .insert((body.list_ids as string[]).map((list_id) => ({ list_id, contact_id: id })));
+    // Só a DIFERENÇA: apagar tudo e reinserir gravaria "saiu da lista / entrou na lista"
+    // na linha do tempo (0023) para listas em que o contato sempre esteve — e dispararia
+    // a automação de "entrou na lista" de novo.
+    const novas = new Set((body.list_ids as unknown[]).map(String));
+    const { data: atuais } = await supabase.from('list_members').select('list_id').eq('contact_id', id);
+    const tinha = new Set(((atuais ?? []) as { list_id: string }[]).map((m) => m.list_id));
+    const sair = [...tinha].filter((l) => !novas.has(l));
+    const entrar = [...novas].filter((l) => !tinha.has(l));
+    if (sair.length) await supabase.from('list_members').delete().eq('contact_id', id).in('list_id', sair);
+    if (entrar.length) {
+      await supabase.from('list_members').insert(entrar.map((list_id) => ({ list_id, contact_id: id })));
     }
   }
 

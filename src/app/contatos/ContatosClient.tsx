@@ -1,30 +1,40 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Contact, Lista } from '@/lib/types';
 import { inputCls } from '@/components/ui';
 import { formatarNumero } from '@/lib/kpis';
 import { formatarTelefone } from '@/lib/whatsapp/jid';
+import { REGRAS_VAZIAS, validarRegras, type Regras } from '@/lib/segmentos';
+import { RegrasSegmento, type OpcoesSegmento } from '@/components/RegrasSegmento';
 import { ImportarContatos } from './ImportarContatos';
+import { Segmentos, Tags, type Segmento } from './SegmentosETags';
 
-type Aba = 'contatos' | 'listas';
+type Aba = 'contatos' | 'segmentos' | 'tags' | 'listas';
 
 export function ContatosClient({
   inicial,
   total,
   listas: listasIniciais,
   resumo,
+  opcoes,
 }: {
   inicial: Contact[];
   total: number;
   listas: Lista[];
   resumo: { comEmail: number; comWhatsApp: number; descadastrados: number };
+  opcoes: Omit<OpcoesSegmento, 'listas'>;
 }) {
   const router = useRouter();
   const [aba, setAba] = useState<Aba>('contatos');
   const [listas, setListas] = useState(listasIniciais);
   const [importando, setImportando] = useState(false);
+  // Segmento aberto a partir da aba Segmentos (ou uma tag da aba Tags): a tabela de
+  // contatos já abre filtrada por ele.
+  const [segmentoAberto, setSegmentoAberto] = useState<Segmento | null>(null);
+  const todasOpcoes: OpcoesSegmento = { ...opcoes, listas };
 
   return (
     <div className="max-w-5xl">
@@ -63,6 +73,8 @@ export function ContatosClient({
         {(
           [
             { key: 'contatos', label: 'Contatos' },
+            { key: 'segmentos', label: 'Segmentos' },
+            { key: 'tags', label: 'Tags' },
             { key: 'listas', label: `Listas (${listas.length})` },
           ] as const
         ).map((t) => (
@@ -80,11 +92,42 @@ export function ContatosClient({
         ))}
       </div>
 
-      {aba === 'contatos' ? (
-        <TabelaContatos inicial={inicial} total={total} listas={listas} />
-      ) : (
-        <Listas listas={listas} onMudou={setListas} />
+      {aba === 'contatos' && (
+        <TabelaContatos
+          key={segmentoAberto?.id ?? 'todos'}
+          inicial={inicial}
+          total={total}
+          listas={listas}
+          opcoes={todasOpcoes}
+          segmento={segmentoAberto}
+          onFecharSegmento={() => setSegmentoAberto(null)}
+          onSalvouSegmento={() => setAba('segmentos')}
+        />
       )}
+      {aba === 'segmentos' && (
+        <Segmentos
+          opcoes={todasOpcoes}
+          onAbrir={(s) => {
+            setSegmentoAberto(s);
+            setAba('contatos');
+          }}
+        />
+      )}
+      {aba === 'tags' && (
+        <Tags
+          onAbrir={(tag) => {
+            setSegmentoAberto({
+              id: 'tag:' + tag,
+              nome: 'Tag: ' + tag,
+              descricao: null,
+              regras: { combinar: 'todas', condicoes: [{ campo: 'tag', op: 'tem', valor: tag }] },
+              total: 0,
+            });
+            setAba('contatos');
+          }}
+        />
+      )}
+      {aba === 'listas' && <Listas listas={listas} onMudou={setListas} />}
 
       {importando && (
         <ImportarContatos
@@ -104,10 +147,18 @@ function TabelaContatos({
   inicial,
   total,
   listas,
+  opcoes,
+  segmento,
+  onFecharSegmento,
+  onSalvouSegmento,
 }: {
   inicial: Contact[];
   total: number;
   listas: Lista[];
+  opcoes: OpcoesSegmento;
+  segmento: Segmento | null;
+  onFecharSegmento: () => void;
+  onSalvouSegmento: () => void;
 }) {
   const [contatos, setContatos] = useState(inicial);
   const [busca, setBusca] = useState('');
@@ -115,6 +166,18 @@ function TabelaContatos({
   const [pagina, setPagina] = useState(0);
   const [totalFiltrado, setTotalFiltrado] = useState(total);
   const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  // Filtro avançado = um segmento ainda não salvo. Abre já preenchido quando veio de um segmento.
+  const [avancado, setAvancado] = useState(Boolean(segmento));
+  const [regras, setRegras] = useState<Regras>(segmento?.regras ?? REGRAS_VAZIAS);
+  const [nomeSegmento, setNomeSegmento] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  // Só regras completas vão para o servidor: uma condição pela metade (tag sem nome)
+  // ainda não filtra nada — a tela mantém a última consulta válida.
+  const validacao = validarRegras(regras);
+  const regrasAtivas =
+    avancado && validacao.ok && validacao.regras.condicoes.length ? JSON.stringify(validacao.regras) : '';
 
   // Busca com atraso de 300 ms: sem isso, cada tecla vira uma consulta, e num campo
   // de busca isso é uma consulta por letra digitada.
@@ -125,24 +188,66 @@ function TabelaContatos({
         const params = new URLSearchParams({ pagina: String(pagina) });
         if (busca.trim()) params.set('busca', busca.trim());
         if (lista) params.set('lista', lista);
+        if (regrasAtivas) params.set('regras', regrasAtivas);
         const res = await fetch(`/api/contacts?${params}`);
+        const body = await res.json().catch(() => ({}));
         if (res.ok) {
-          const body = await res.json();
           setContatos(body.contatos);
           setTotalFiltrado(body.total);
+          setErro(null);
+        } else {
+          setErro(body.error ?? 'Não consegui filtrar.');
         }
       } finally {
         setCarregando(false);
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [busca, lista, pagina]);
+  }, [busca, lista, pagina, regrasAtivas]);
+
+  const segmentoSalvo = Boolean(segmento && !segmento.id.startsWith('tag:'));
+
+  async function salvarSegmento() {
+    if (!validacao.ok) return setErro(validacao.erro);
+    setSalvando(true);
+    setErro(null);
+    try {
+      const res = await fetch(segmentoSalvo && segmento ? `/api/segments/${segmento.id}` : '/api/segments', {
+        method: segmentoSalvo ? 'PATCH' : 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(
+          segmentoSalvo ? { regras: validacao.regras } : { nome: nomeSegmento, regras: validacao.regras },
+        ),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return setErro(body.error ?? 'Não consegui salvar o segmento.');
+      setNomeSegmento('');
+      onSalvouSegmento();
+    } finally {
+      setSalvando(false);
+    }
+  }
 
   const porPagina = 100;
   const paginas = Math.ceil(totalFiltrado / porPagina);
 
   return (
     <div>
+      {segmento && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-blue/30 bg-blue/[0.06] px-4 py-2.5 text-sm">
+          <span>
+            {segmentoSalvo ? 'Segmento' : 'Filtro'}: <b>{segmento.nome}</b>
+          </span>
+          <button
+            type="button"
+            onClick={onFecharSegmento}
+            className="ml-auto text-xs font-semibold text-muted underline underline-offset-2 hover:text-ink"
+          >
+            Ver todos os contatos
+          </button>
+        </div>
+      )}
+
       <div className="mb-3.5 flex flex-wrap gap-2.5">
         <input
           value={busca}
@@ -168,50 +273,125 @@ function TabelaContatos({
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          onClick={() => setAvancado((v) => !v)}
+          aria-expanded={avancado}
+          className={`rounded-xl border px-4 py-3 text-[13px] font-semibold transition-colors ${
+            avancado ? 'border-blue/50 bg-blue/10 text-ink' : 'border-border text-muted hover:border-blue2 hover:text-ink'
+          }`}
+        >
+          ⚙ Filtro avançado
+        </button>
       </div>
+
+      {avancado && (
+        <div className="mb-3.5 rounded-xl2 border border-border bg-surface p-4">
+          <RegrasSegmento
+            regras={regras}
+            onChange={(r) => {
+              setRegras(r);
+              setPagina(0);
+            }}
+            opcoes={opcoes}
+          />
+          {!validacao.ok && regras.condicoes.length > 0 && <p className="mt-2 text-xs text-muted">{validacao.erro}</p>}
+          {validacao.ok && validacao.regras.condicoes.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+              {segmentoSalvo && segmento ? (
+                <button
+                  type="button"
+                  onClick={() => void salvarSegmento()}
+                  disabled={salvando}
+                  className="rounded-xl bg-blue px-4 py-2.5 text-[13px] font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:bg-surface2 disabled:text-muted"
+                >
+                  {salvando ? 'Salvando…' : `Atualizar "${segmento.nome}"`}
+                </button>
+              ) : (
+                <>
+                  <input
+                    value={nomeSegmento}
+                    onChange={(e) => setNomeSegmento(e.target.value)}
+                    placeholder="Nome do segmento — ex.: Engajados da live do Japão"
+                    aria-label="Nome do segmento"
+                    className={`${inputCls} !py-2.5 min-w-[240px] flex-1 text-[13px]`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void salvarSegmento()}
+                    disabled={salvando || !nomeSegmento.trim()}
+                    className="rounded-xl bg-blue px-4 py-2.5 text-[13px] font-semibold text-on-blue transition-colors hover:bg-blue-hover disabled:bg-surface2 disabled:text-muted"
+                  >
+                    {salvando ? 'Salvando…' : 'Salvar como segmento'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {erro && (
+        <p role="alert" className="mb-3 text-sm text-[#ffb183]">
+          {erro}
+        </p>
+      )}
 
       <div className="overflow-hidden rounded-xl2 border border-border bg-surface">
         {contatos.length === 0 ? (
           <p className="p-6 text-sm text-muted">
-            {busca || lista
+            {busca || lista || regrasAtivas
               ? 'Nenhum contato com esse filtro.'
               : 'Nenhum contato ainda. Use o botão Importar CSV para trazer sua base.'}
           </p>
         ) : (
           <>
-            <div className="grid grid-cols-[2fr_2fr_1.4fr_1fr] gap-3 bg-surface2 px-[18px] py-[11px] text-xs font-semibold uppercase tracking-[0.06em] text-muted">
+            <div className="hidden grid-cols-[2fr_2fr_1.4fr_0.6fr_1fr] gap-3 bg-surface2 px-[18px] py-[11px] text-xs font-semibold uppercase tracking-[0.06em] text-muted md:grid">
               <div>Nome</div>
               <div>E-mail</div>
               <div>WhatsApp</div>
+              <div>Pontos</div>
               <div>Situação</div>
             </div>
             {contatos.map((c) => (
-              <div
+              <Link
                 key={c.id}
-                className="grid grid-cols-[2fr_2fr_1.4fr_1fr] items-center gap-3 border-t border-border px-[18px] py-3 text-sm"
+                href={`/contatos/${c.id}`}
+                className="grid grid-cols-1 items-center gap-1 border-t border-border px-[18px] py-3 text-sm transition-colors hover:bg-white/[0.03] md:grid-cols-[2fr_2fr_1.4fr_0.6fr_1fr] md:gap-3"
               >
                 <div className="min-w-0">
                   <div className="truncate">{c.nome || <span className="text-muted">sem nome</span>}</div>
-                  {c.empresa && <div className="truncate text-xs text-muted">{c.empresa}</div>}
+                  {c.tags?.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {c.tags.slice(0, 3).map((t) => (
+                        <span key={t} className="rounded-full bg-surface2 px-2 py-0.5 text-[10px] text-muted">
+                          {t}
+                        </span>
+                      ))}
+                      {c.tags.length > 3 && <span className="text-[10px] text-muted">+{c.tags.length - 3}</span>}
+                    </div>
+                  )}
                 </div>
                 <div className="truncate text-muted">{c.email ?? '—'}</div>
                 <div className="truncate tabular-nums text-muted">
                   {c.telefone ? formatarTelefone(c.telefone) : '—'}
                 </div>
+                <div className="tabular-nums text-muted">
+                  <span className="md:hidden">Pontos: </span>
+                  {c.score ?? 0}
+                </div>
                 <div className="flex flex-wrap gap-1">
                   <Selo status={c.status_email} canal="e-mail" />
                   {c.telefone && <Selo status={c.status_whatsapp} canal="WhatsApp" />}
                 </div>
-              </div>
+              </Link>
             ))}
           </>
         )}
       </div>
 
       <div className="mt-3.5 flex items-center justify-between gap-3 text-xs text-muted">
-        <span>
-          {carregando ? 'Buscando…' : `${formatarNumero(totalFiltrado)} contato(s)`}
-        </span>
+        <span>{carregando ? 'Buscando…' : `${formatarNumero(totalFiltrado)} contato(s)`}</span>
         {paginas > 1 && (
           <div className="flex items-center gap-2">
             <button

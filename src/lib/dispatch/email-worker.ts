@@ -15,6 +15,8 @@ import { tokenAleatorio } from '../seguranca';
 import { urlPublica } from '../url';
 import { dormir, Orcamento } from './ritmo';
 import { paginar } from '../supabase/paginar';
+import { idsDoSegmento } from '../segmentos-servidor';
+import type { Regras } from '../segmentos';
 
 const MAX_TENTATIVAS = 3;
 const MINUTOS_ATE_ORFA = 15;
@@ -105,7 +107,8 @@ interface LinhaEmail {
  * Resolve o público da campanha de e-mail.
  *
  * Três filtros, nesta ordem, e nenhum deles é opcional:
- *   • pertence a alguma das listas escolhidas;
+ *   • pertence a alguma das listas escolhidas e/ou casa com o segmento (0023) — com os
+ *     dois, vale quem está nos dois. O segmento é resolvido AGORA, na montagem da fila;
  *   • `status_email = 'ativo'` — quem descadastrou, deu bounce ou marcou spam FICA DE FORA.
  *     Mandar para essas pessoas é o caminho mais rápido para o domínio ser bloqueado;
  *   • se a campanha tem tags, o contato precisa ter pelo menos uma.
@@ -114,22 +117,39 @@ async function montarFilaEmail(
   supabase: SupabaseClient,
   campanha: EmailCampaign,
 ): Promise<{ linhas: LinhaEmail[]; aviso: string | null }> {
-  if (!campanha.list_ids?.length) {
-    return { linhas: [], aviso: 'Nenhuma lista selecionada.' };
+  const temListas = Boolean(campanha.list_ids?.length);
+  if (!temListas && !campanha.segment_id) {
+    return { linhas: [], aviso: 'Nenhuma lista nem segmento selecionado.' };
   }
 
-  const { data: membros, error: mErr } = await paginar<{ contact_id: string }>((de, ate) =>
-    supabase
-      .from('list_members')
-      .select('contact_id')
-      .in('list_id', campanha.list_ids)
-      .order('contact_id', { ascending: true })
-      .range(de, ate),
-  );
-  if (mErr) return { linhas: [], aviso: `Erro ao ler as listas: ${mErr}` };
+  let ids: string[] | null = null;
 
-  const ids = [...new Set(membros.map((m) => m.contact_id))];
-  if (!ids.length) return { linhas: [], aviso: 'As listas escolhidas estão vazias.' };
+  if (temListas) {
+    const { data: membros, error: mErr } = await paginar<{ contact_id: string }>((de, ate) =>
+      supabase
+        .from('list_members')
+        .select('contact_id')
+        .in('list_id', campanha.list_ids)
+        .order('contact_id', { ascending: true })
+        .range(de, ate),
+    );
+    if (mErr) return { linhas: [], aviso: `Erro ao ler as listas: ${mErr}` };
+    ids = [...new Set(membros.map((m) => m.contact_id))];
+  }
+
+  if (campanha.segment_id) {
+    const { data: seg } = await supabase.from('segments').select('regras').eq('id', campanha.segment_id).maybeSingle();
+    // Segmento apagado depois de agendar: NÃO cai para "todo mundo" — para e avisa.
+    if (!seg) return { linhas: [], aviso: 'O segmento desta campanha foi apagado.' };
+    const r = await idsDoSegmento(supabase, seg.regras as Regras);
+    if ('erro' in r) return { linhas: [], aviso: `Erro ao resolver o segmento: ${r.erro}` };
+    const doSegmento = new Set(r.ids);
+    ids = ids ? ids.filter((id) => doSegmento.has(id)) : r.ids;
+  }
+
+  if (!ids?.length) {
+    return { linhas: [], aviso: campanha.segment_id ? 'Ninguém casa com o público escolhido agora.' : 'As listas escolhidas estão vazias.' };
+  }
 
   const contatos: Contact[] = [];
   for (let i = 0; i < ids.length; i += 300) {
@@ -169,7 +189,7 @@ async function montarFilaEmail(
 
   return {
     linhas,
-    aviso: linhas.length ? null : 'Nenhum contato ativo com e-mail nas listas escolhidas.',
+    aviso: linhas.length ? null : 'Nenhum contato ativo com e-mail no público escolhido.',
   };
 }
 
