@@ -40,7 +40,10 @@ const grupos: { titulo: string | null; itens: { href: string; label: string; ico
   },
   {
     titulo: 'E-mail',
-    itens: [{ href: '/email', label: 'Campanhas', icon: '✉️' }],
+    itens: [
+      { href: '/email', label: 'Campanhas', icon: '✉️' },
+      { href: '/email/conexao', label: 'Conexão', icon: '🔗' },
+    ],
   },
   {
     titulo: 'Base',
@@ -65,6 +68,12 @@ export function Sidebar() {
   const router = useRouter();
   const [conexoes, setConexoes] = useState<ResumoConexoes | null>(null);
   const [menuAberto, setMenuAberto] = useState(false);
+  // Ativo = o item de caminho MAIS LONGO que casa: em /email/conexao acende "Conexão",
+  // não "Campanhas" (/email) também.
+  const ativo = grupos
+    .flatMap((g) => g.itens.map((i) => i.href))
+    .filter((h) => path === h || path.startsWith(`${h}/`))
+    .sort((a, b) => b.length - a.length)[0];
 
   // O rodapé mostra o estado real dos números. Antes havia ali um selo fixo dizendo
   // "Motor n8n + Z-API" — decorativo, e que continuaria verde com tudo desconectado.
@@ -144,7 +153,7 @@ export function Sidebar() {
               </h2>
             )}
             {grupo.itens.map((it) => {
-              const active = path === it.href || path.startsWith(`${it.href}/`);
+              const active = it.href === ativo;
               return (
                 <Link
                   key={it.href}

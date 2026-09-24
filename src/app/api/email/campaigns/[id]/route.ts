@@ -87,7 +87,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   );
   if (errors.length) return NextResponse.json({ errors }, { status: 400 });
 
-  if (agendar && !provedorAtivo()) {
+  if (agendar && !(await provedorAtivo())) {
     return NextResponse.json(
       { error: 'Nenhum provedor de e-mail configurado. Configure Resend ou SMTP antes de agendar.' },
       { status: 503 },

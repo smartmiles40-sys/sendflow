@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { lerConfigEmail } from '@/lib/email/config';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -79,9 +80,9 @@ export async function POST(req: Request) {
   // existir) deixaria qualquer pessoa marcar um envio como bounce ou spam — e
   // `registrar_falha_email` descadastra o contato para sempre. Falhar fechado aqui custa
   // uma linha vermelha na tela de Configurações; falhar aberto custa a base.
-  const segredo = (process.env.RESEND_WEBHOOK_SECRET ?? '').trim();
+  const segredo = (await lerConfigEmail()).resendWebhookSecret ?? '';
   if (!segredo) {
-    return NextResponse.json({ error: 'RESEND_WEBHOOK_SECRET não configurado' }, { status: 503 });
+    return NextResponse.json({ error: 'Webhook do Resend não configurado (E-mail → Conexão)' }, { status: 503 });
   }
   if (!assinaturaSvixConfere(corpo, req.headers, segredo)) {
     return NextResponse.json({ error: 'assinatura inválida' }, { status: 401 });

@@ -109,10 +109,11 @@ export function EmailListaClient({
           role="alert"
           className="mb-6 rounded-xl2 border border-orange/30 bg-orange/[0.08] p-5 text-sm leading-relaxed text-[#ffb183]"
         >
-          <strong className="font-semibold">Envio de e-mail desligado.</strong> Configure{' '}
-          <code className="font-mono text-xs">RESEND_API_KEY</code> (recomendado) ou as variáveis{' '}
-          <code className="font-mono text-xs">SMTP_*</code>. Dá para escrever e salvar rascunhos
-          normalmente enquanto isso.
+          <strong className="font-semibold">Envio de e-mail desligado.</strong> Conecte o Resend em{' '}
+          <Link href="/email/conexao" className="font-semibold underline underline-offset-2">
+            E-mail → Conexão
+          </Link>
+          . Dá para escrever e salvar rascunhos normalmente enquanto isso.
         </div>
       )}
 

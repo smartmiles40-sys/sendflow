@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { readJson } from '@/lib/http';
 import { provedorAtivo } from '@/lib/email/provider';
 import { evolutionConfigurada } from '@/lib/whatsapp/evolution';
+import { lerConfigEmail } from '@/lib/email/config';
 import { urlPublica, urlPublicaEstavel } from '@/lib/url';
 
 export const dynamic = 'force-dynamic';
@@ -27,11 +28,11 @@ export async function GET() {
       url_publica: urlPublica(),
       url_estavel: urlPublicaEstavel(),
       evolution: evolutionConfigurada(),
-      email: provedorAtivo(),
+      email: await provedorAtivo(),
       auth_secret: Boolean((process.env.AUTH_SECRET ?? '').length >= 16),
       cron_secret: Boolean(process.env.CRON_SECRET),
       webhook_secret: Boolean(process.env.WEBHOOK_SECRET),
-      resend_webhook: Boolean(process.env.RESEND_WEBHOOK_SECRET),
+      resend_webhook: Boolean((await lerConfigEmail()).resendWebhookSecret),
     },
   });
 }

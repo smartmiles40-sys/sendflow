@@ -220,7 +220,7 @@ async function drenar(
   orcamento: Orcamento,
   resultado: ResultadoEmailWorker,
 ): Promise<void> {
-  if (!provedorAtivo()) {
+  if (!(await provedorAtivo())) {
     resultado.avisos.push(AVISO_SEM_PROVEDOR);
     return;
   }

@@ -22,7 +22,7 @@ export default async function EmailPage() {
         ...c,
         kpi: porId.get(c.id) ?? null,
       }))}
-      provedor={provedorAtivo()}
+      provedor={await provedorAtivo()}
     />
   );
 }

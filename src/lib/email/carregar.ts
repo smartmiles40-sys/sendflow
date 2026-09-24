@@ -43,6 +43,6 @@ export async function carregarDadosEditor(campanhaId?: string): Promise<DadosEdi
       email: remetente.email ?? '',
       responder_para: remetente.responder_para ?? '',
     },
-    provedor: provedorAtivo(),
+    provedor: await provedorAtivo(),
   };
 }

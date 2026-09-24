@@ -136,7 +136,7 @@ export async function avisarSePreciso(
       .eq('chave', 'envio')
       .maybeSingle();
     const destino = String((config?.valor as { alerta_email?: string })?.alerta_email ?? '').trim();
-    if (!destino || !provedorAtivo()) return 0;
+    if (!destino || !(await provedorAtivo())) return 0;
 
     const alertas = await coletarAlertas(supabase, pendentes, enviadasNoTick);
     if (!alertas.length) return 0;

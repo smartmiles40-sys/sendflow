@@ -319,7 +319,7 @@ function Diagnostico({ ambiente }: { ambiente: Ambiente }) {
       titulo: 'Provedor de e-mail',
       detalhe: ambiente.email
         ? `Usando ${ambiente.email}.`
-        : 'Faltam RESEND_API_KEY ou as variáveis SMTP_*. Sem isso, nenhum e-mail sai.',
+        : 'Resend não conectado — conecte em E-mail → Conexão. Sem isso, nenhum e-mail sai.',
     },
     {
       ok: ambiente.auth_secret,
@@ -364,10 +364,10 @@ function Diagnostico({ ambiente }: { ambiente: Ambiente }) {
     {
       ok: ambiente.resend_webhook,
       critico: false,
-      titulo: 'RESEND_WEBHOOK_SECRET',
+      titulo: 'Webhook do Resend',
       detalhe: ambiente.resend_webhook
-        ? 'Definido. Bounce e spam chegam verificados.'
-        : 'Opcional, mas sem ele não há confirmação de entrega, bounce nem denúncia de spam vindas do provedor.',
+        ? 'Configurado. Bounce e spam chegam verificados.'
+        : 'Falta criar em E-mail → Conexão (passo 3). Sem ele não há confirmação de entrega, bounce nem denúncia de spam.',
     },
   ];
 

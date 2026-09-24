@@ -19,7 +19,7 @@ export async function GET() {
   const porId = new Map((kpis ?? []).map((k) => [k.campaign_id, k]));
   return NextResponse.json({
     campanhas: (campanhas ?? []).map((c) => ({ ...c, kpi: porId.get(c.id) ?? null })),
-    provedor: provedorAtivo(),
+    provedor: (await provedorAtivo()),
   });
 }
 
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   const { valor, errors } = parseEmailCampanha(body, { rascunho: !agendar });
   if (errors.length) return NextResponse.json({ errors }, { status: 400 });
 
-  if (agendar && !provedorAtivo()) {
+  if (agendar && !(await provedorAtivo())) {
     return NextResponse.json(
       { error: 'Nenhum provedor de e-mail configurado. Configure Resend ou SMTP antes de agendar.' },
       { status: 503 },

@@ -4,6 +4,7 @@ import { evolutionConfigurada } from '@/lib/whatsapp/evolution';
 import { cloudConfigurada } from '@/lib/whatsapp/meta-config';
 import { urlPublica, urlPublicaEstavel } from '@/lib/url';
 import { loginExigido, segredoConfigurado } from '@/lib/auth';
+import { lerConfigEmail } from '@/lib/email/config';
 import { ConfiguracoesClient } from './ConfiguracoesClient';
 
 export const dynamic = 'force-dynamic';
@@ -54,12 +55,12 @@ export default async function ConfiguracoesPage() {
         url_estavel: urlPublicaEstavel(),
         evolution: evolutionConfigurada(),
         oficial: await cloudConfigurada(),
-        email: provedorAtivo(),
+        email: await provedorAtivo(),
         login: loginExigido(),
         auth_secret: segredoConfigurado(),
         cron_secret: Boolean(process.env.CRON_SECRET),
         webhook_secret: Boolean(process.env.WEBHOOK_SECRET),
-        resend_webhook: Boolean(process.env.RESEND_WEBHOOK_SECRET),
+        resend_webhook: Boolean((await lerConfigEmail()).resendWebhookSecret),
       }}
     />
   );

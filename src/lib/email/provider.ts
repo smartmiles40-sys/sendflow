@@ -6,7 +6,10 @@
 //            Abertura e clique continuam funcionando (são nossos, via pixel e link),
 //            mas "entregue" vira uma inferência: SMTP aceito ≠ caixa de entrada.
 //
-// A escolha é por variável de ambiente. Nenhuma linha de código muda ao trocar.
+// O Resend se conecta pela tela (E-mail → Conexão, chave no Vault — ver config.ts);
+// SMTP continua por variável de ambiente. Nenhuma linha de código muda ao trocar.
+
+import { lerConfigEmail } from './config';
 
 export interface EmailParaEnviar {
   para: string;
@@ -52,10 +55,11 @@ export type Provedor = 'resend' | 'smtp';
  * Qual provedor está configurado. `EMAIL_PROVIDER` decide quando os dois estão
  * disponíveis; sem ele, Resend ganha por ter melhor telemetria de entrega.
  */
-export function provedorAtivo(): Provedor | null {
+export async function provedorAtivo(): Promise<Provedor | null> {
   const escolhido = (process.env.EMAIL_PROVIDER ?? '').trim().toLowerCase();
-  const temResend = Boolean(process.env.RESEND_API_KEY);
-  const temSmtp = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER);
+  const cfg = await lerConfigEmail();
+  const temResend = Boolean(cfg.resendKey);
+  const temSmtp = cfg.smtp;
   if (escolhido === 'resend') return temResend ? 'resend' : null;
   if (escolhido === 'smtp') return temSmtp ? 'smtp' : null;
   if (temResend) return 'resend';
@@ -65,7 +69,7 @@ export function provedorAtivo(): Provedor | null {
 
 /** Mensagem única de "falta configurar", reusada pela API e pela tela. */
 export const AVISO_SEM_PROVEDOR =
-  'Nenhum provedor de e-mail configurado. Defina RESEND_API_KEY ou as variáveis SMTP_* no ambiente.';
+  'Nenhum provedor de e-mail configurado. Conecte o Resend em E-mail → Conexão.';
 
 /** `Fulano <fulano@dominio.com>`, com aspas quando o nome tem vírgula ou ponto. */
 export function formatarRemetente(nome: string, email: string): string {
@@ -94,7 +98,7 @@ export function cabecalhosDescadastro(url?: string | null): Record<string, strin
 // ── Resend ───────────────────────────────────────────────────────────────────────
 
 async function enviarPorResend(msg: EmailParaEnviar): Promise<ResultadoEmail> {
-  const chave = process.env.RESEND_API_KEY;
+  const chave = (await lerConfigEmail()).resendKey;
   if (!chave) throw new EmailError(AVISO_SEM_PROVEDOR, true);
 
   let res: Response;
@@ -196,7 +200,7 @@ async function enviarPorSmtp(msg: EmailParaEnviar): Promise<ResultadoEmail> {
 // ── Porta de entrada ─────────────────────────────────────────────────────────────
 
 export async function enviarEmail(msg: EmailParaEnviar): Promise<ResultadoEmail> {
-  const provedor = provedorAtivo();
+  const provedor = await provedorAtivo();
   if (!provedor) throw new EmailError(AVISO_SEM_PROVEDOR, true);
   return provedor === 'resend' ? enviarPorResend(msg) : enviarPorSmtp(msg);
 }
