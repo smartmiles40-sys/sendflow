@@ -93,7 +93,8 @@ async function trocarCodigo(code: string, paginaUrl?: string | null): Promise<{ 
       return { token: String(j.access_token) };
     }
     ultimo = j?.error?.message ?? 'sem resposta';
-    if (!/redirect_uri/i.test(ultimo)) break;
+    // "Can't load URL… App Domains" também é recusa do endereço, não do código.
+    if (!/redirect_uri|app domains|domain of this url/i.test(ultimo)) break;
     console.warn(`[meta-conexao] troca recusada (redirect_uri=${redirect ?? 'nenhum'}): ${ultimo}`);
   }
   return { erro: `A Meta não trocou o código: ${ultimo}. Conecte de novo — o código vale poucos segundos.` };
