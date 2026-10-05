@@ -76,6 +76,7 @@ export async function conectarPelaMeta(o: OpcoesConexao): Promise<{ conexao: Con
       if (!/(^|\.)facebook\.com$/.test(new URL(ev.origin).hostname)) return;
       const d = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
       if (d?.type !== 'WA_EMBEDDED_SIGNUP') return;
+      console.info('[meta-conexao] WA_EMBEDDED_SIGNUP', d.event, d.data);
       if (String(d.event || '').startsWith('FINISH')) sessao = d.data || {};
       else if (d.event === 'CANCEL') cancelou = d.data?.current_step || 'cancelado';
     } catch {
@@ -104,17 +105,16 @@ export async function conectarPelaMeta(o: OpcoesConexao): Promise<{ conexao: Con
     for (let i = 0; i < 15 && !sessao && !cancelou; i += 1) await new Promise((r) => setTimeout(r, 200));
 
     if (!code || cancelou) throw new Error('A conexão foi cancelada na janela da Meta.');
+    // Sem os ids (o aviso da janela às vezes não chega no v4), o servidor descobre a
+    // conta e o número pelo próprio token.
     const s = sessao as { phone_number_id?: string; waba_id?: string } | null;
-    if (!s?.phone_number_id || !s?.waba_id) {
-      throw new Error('A Meta não informou qual número foi escolhido. Conecte de novo e vá até o fim da janela.');
-    }
     const res = await fetch('/api/connections/meta', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         code,
-        wabaId: s.waba_id,
-        phoneId: s.phone_number_id,
+        wabaId: s?.waba_id || null,
+        phoneId: s?.phone_number_id || null,
         modo: o.modo,
         pin: o.pin || null,
         nome: o.nome || null,

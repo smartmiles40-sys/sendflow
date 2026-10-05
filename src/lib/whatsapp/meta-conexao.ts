@@ -112,23 +112,70 @@ export interface ResultadoConexao {
 }
 
 /**
+ * A conta (WABA) a partir do próprio token, quando a janela não disse qual. No
+ * Cadastro Incorporado v4 o aviso com os ids às vezes não chega (visto em 05/10/2026,
+ * igual ao QS em 28/09). O token trocado carrega no debug_token as contas que ele
+ * administra; com uma só, é ela. Com mais de uma, não chuta.
+ */
+async function descobrirWaba(token: string): Promise<{ wabaId: string } | { erro: string }> {
+  try {
+    const d = await chamar<{ data?: { granular_scopes?: { scope: string; target_ids?: string[] }[] } }>(
+      `/debug_token?input_token=${encodeURIComponent(token)}`,
+      { token },
+    );
+    const ids = d?.data?.granular_scopes?.find((g) => g.scope === 'whatsapp_business_management')?.target_ids ?? [];
+    if (ids.length === 1) return { wabaId: String(ids[0]) };
+    if (ids.length > 1) {
+      return { erro: `O login deu acesso a ${ids.length} contas de WhatsApp e não sei qual foi escolhida. Conecte de novo marcando só uma.` };
+    }
+  } catch (e) {
+    return { erro: `Não consegui descobrir a conta na Meta: ${e instanceof Error ? e.message : e}` };
+  }
+  return { erro: 'Conectado na Meta, mas o login não deu acesso a nenhuma conta de WhatsApp. Conecte de novo até o fim da janela.' };
+}
+
+/** O número da conta, quando a janela não disse qual. Com mais de um, fica o que ainda não está aqui. */
+async function descobrirNumero(wabaId: string, token: string): Promise<{ phoneId: string } | { erro: string }> {
+  let lista: { id: string; display_phone_number?: string }[] = [];
+  try {
+    const d = await chamar<{ data?: { id: string; display_phone_number?: string }[] }>(
+      `/${wabaId}/phone_numbers?fields=id,display_phone_number`,
+      { token },
+    );
+    lista = Array.isArray(d?.data) ? d.data : [];
+  } catch (e) {
+    return { erro: `Não consegui ler os números da conta na Meta: ${e instanceof Error ? e.message : e}` };
+  }
+  if (!lista.length) return { erro: 'A conta conectada não tem número. Conecte de novo e digite o número na janela da Meta.' };
+  if (lista.length === 1) return { phoneId: String(lista[0].id) };
+  const { data: jaAqui } = await createServerClient().from('connections').select('phone_number_id').not('phone_number_id', 'is', null);
+  const conhecidos = new Set((jaAqui ?? []).map((r: { phone_number_id: string }) => String(r.phone_number_id)));
+  const novos = lista.filter((n) => !conhecidos.has(String(n.id)));
+  if (novos.length === 1) return { phoneId: String(novos[0].id) };
+  return {
+    erro: `A conta tem ${lista.length} números (${lista.map((n) => n.display_phone_number).join(', ')}) e não sei qual foi escolhido. Use o cadastro à mão com o ID do número.`,
+  };
+}
+
+/**
  * Conecta (ou reconecta) um número pelo que voltou da janela da Meta.
  *   modo 'cloud'        → número só na API; `pin` (6 dígitos) registra o número
  *   modo 'coexistencia' → WhatsApp Business do celular continua funcionando junto
  */
 export async function conectarNumero(p: {
   code: string;
-  wabaId: string;
-  phoneId: string;
+  /** Vazios quando a janela não mandou os ids — aí são descobertos pelo token. */
+  wabaId?: string | null;
+  phoneId?: string | null;
   modo: 'cloud' | 'coexistencia';
   pin?: string | null;
   nome?: string | null;
 }): Promise<ResultadoConexao | { erro: string }> {
   const modo = p.modo === 'coexistencia' ? 'coexistencia' : 'cloud';
-  if (!p.code || !p.wabaId || !p.phoneId) {
-    return { erro: 'A janela da Meta não devolveu o número. Conecte de novo e vá até o fim.' };
-  }
-  if (!/^\d+$/.test(p.wabaId) || !/^\d+$/.test(p.phoneId)) return { erro: 'Ids inválidos.' };
+  if (!p.code) return { erro: 'A janela da Meta não devolveu o código. Conecte de novo e vá até o fim.' };
+  let wabaId = String(p.wabaId ?? '').trim();
+  let phoneId = String(p.phoneId ?? '').trim();
+  if ((wabaId && !/^\d+$/.test(wabaId)) || (phoneId && !/^\d+$/.test(phoneId))) return { erro: 'Ids inválidos.' };
   const pin = String(p.pin ?? '').trim();
   if (pin && !/^\d{6}$/.test(pin)) return { erro: 'O PIN tem 6 números.' };
 
@@ -136,11 +183,22 @@ export async function conectarNumero(p: {
   if ('erro' in troca) return troca;
   const token = troca.token;
 
+  if (!wabaId) {
+    const achou = await descobrirWaba(token);
+    if ('erro' in achou) return achou;
+    wabaId = achou.wabaId;
+  }
+  if (!phoneId) {
+    const achou = await descobrirNumero(wabaId, token);
+    if ('erro' in achou) return achou;
+    phoneId = achou.phoneId;
+  }
+
   // (2) O número existe e este token enxerga ele?
   let info: Record<string, unknown>;
   try {
     info = await chamar<Record<string, unknown>>(
-      `/${p.phoneId}?fields=display_phone_number,verified_name,quality_rating,messaging_limit_tier`,
+      `/${phoneId}?fields=display_phone_number,verified_name,quality_rating,messaging_limit_tier`,
       { token },
     );
   } catch (e) {
@@ -149,7 +207,7 @@ export async function conectarNumero(p: {
 
   // (3) O app assinado na conta — é o que faz as mensagens chegarem.
   try {
-    await chamar(`/${p.wabaId}/subscribed_apps`, { method: 'POST', token });
+    await chamar(`/${wabaId}/subscribed_apps`, { method: 'POST', token });
   } catch (e) {
     return { erro: `A Meta não deixou assinar o app na conta: ${e instanceof Error ? e.message : e}` };
   }
@@ -158,7 +216,7 @@ export async function conectarNumero(p: {
   const avisos: string[] = [];
   if (modo === 'cloud' && pin) {
     try {
-      await chamar(`/${p.phoneId}/register`, {
+      await chamar(`/${phoneId}/register`, {
         method: 'POST',
         token,
         body: { messaging_product: 'whatsapp', pin },
@@ -170,7 +228,7 @@ export async function conectarNumero(p: {
   } else if (modo === 'coexistencia') {
     for (const tipo of ['smb_app_state_sync', 'history']) {
       try {
-        await chamar(`/${p.phoneId}/smb_app_data`, {
+        await chamar(`/${phoneId}/smb_app_data`, {
           method: 'POST',
           token,
           body: { messaging_product: 'whatsapp', sync_type: tipo },
@@ -190,8 +248,8 @@ export async function conectarNumero(p: {
   const linha = {
     provider: 'cloud',
     instance_name: null,
-    phone_number_id: p.phoneId,
-    waba_id: p.wabaId,
+    phone_number_id: phoneId,
+    waba_id: wabaId,
     status: 'conectada',
     numero,
     profile_name: nomeVerificado,
@@ -203,7 +261,7 @@ export async function conectarNumero(p: {
   const { data: existente } = await supabase
     .from('connections')
     .select('id')
-    .eq('phone_number_id', p.phoneId)
+    .eq('phone_number_id', phoneId)
     .maybeSingle();
 
   let conexao: Connection;
@@ -212,7 +270,7 @@ export async function conectarNumero(p: {
     if (error) return { erro: `Conectado na Meta, mas não consegui guardar: ${error.message}` };
     conexao = data as Connection;
   } else {
-    const nome = String(p.nome ?? '').trim() || nomeVerificado || `WhatsApp ${numero ?? p.phoneId}`;
+    const nome = String(p.nome ?? '').trim() || nomeVerificado || `WhatsApp ${numero ?? phoneId}`;
     const { data, error } = await supabase
       .from('connections')
       .insert({ ...linha, nome, msgs_por_segundo: 10, limite_diario: 0 })
@@ -227,10 +285,10 @@ export async function conectarNumero(p: {
     p_token: token,
   });
   if (erroCofre) return { erro: `Conectado, mas o token não foi guardado no cofre: ${erroCofre.message}` };
-  esquecerToken(p.phoneId);
+  esquecerToken(phoneId);
 
   // (6) Webhook do número → SendFlow. Depois de guardar, para já usar o token novo.
-  const w = await apontarWebhookDoNumero(p.phoneId, token);
+  const w = await apontarWebhookDoNumero(phoneId, token);
   if ('erro' in w) avisos.push(`Webhook: ${w.erro}`);
   else conexao.webhook_apontado_em = new Date().toISOString();
 
