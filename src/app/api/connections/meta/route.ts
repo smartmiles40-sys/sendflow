@@ -35,6 +35,7 @@ export async function PUT(req: Request) {
 export async function POST(req: Request) {
   const parsed = await readJson<{
     code?: unknown;
+    paginaUrl?: unknown;
     wabaId?: unknown;
     phoneId?: unknown;
     modo?: unknown;
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
   const b = parsed.data;
   const r = await conectarNumero({
     code: String(b.code ?? ''),
+    paginaUrl: typeof b.paginaUrl === 'string' ? b.paginaUrl : null,
     wabaId: String(b.wabaId ?? ''),
     phoneId: String(b.phoneId ?? ''),
     modo: b.modo === 'coexistencia' ? 'coexistencia' : 'cloud',

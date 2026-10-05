@@ -52,26 +52,51 @@ export async function lerConfigCadastro(): Promise<ConfigCadastro> {
   };
 }
 
-/** Código de uso único (vale ~30 s) → token de negócio. */
-async function trocarCodigo(code: string): Promise<{ token: string } | { erro: string }> {
+/**
+ * Código de uso único (vale ~30 s) → token de negócio.
+ *
+ * A troca precisa repetir o MESMO redirect_uri do pedido de login. O código do
+ * FB.login normalmente não tem nenhum (é como o QS troca), mas neste app a Meta
+ * respondeu "redirect_uri is identical" (05/10/2026). Então tenta sem, e só quando
+ * a recusa for por esse motivo tenta os endereços prováveis: a raiz do SendFlow
+ * (que está nas URIs válidas do app) e a página de onde veio o clique. Recusa por
+ * qualquer outro motivo para na hora.
+ */
+async function trocarCodigo(code: string, paginaUrl?: string | null): Promise<{ token: string } | { erro: string }> {
   const { appId, appSecret: secret } = await lerConfigMeta();
   if (!appId || !secret) return { erro: 'Faltam o App ID e a chave secreta do app em Conexões → Dados do app da Meta.' };
   const versao = (process.env.META_API_VERSION ?? 'v23.0').trim() || 'v23.0';
-  const url =
+  const base =
     `https://graph.facebook.com/${versao}/oauth/access_token?client_id=${encodeURIComponent(appId)}` +
     `&client_secret=${encodeURIComponent(secret)}&code=${encodeURIComponent(code)}`;
-  try {
-    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(20_000) });
-    const j = (await res.json().catch(() => null)) as { access_token?: string; error?: { message?: string } } | null;
-    if (!j?.access_token) {
-      return {
-        erro: `A Meta não trocou o código: ${j?.error?.message ?? 'sem resposta'}. Conecte de novo — o código vale poucos segundos.`,
-      };
-    }
-    return { token: String(j.access_token) };
-  } catch {
-    return { erro: 'Não consegui falar com a Meta para trocar o código. Tente de novo.' };
+
+  const raiz = `${urlPublica()}/`;
+  const tentativas: (string | null)[] = [null, raiz];
+  const pagina = String(paginaUrl ?? '').split('#')[0];
+  if (pagina.startsWith('https://')) {
+    const semBusca = pagina.split('?')[0];
+    for (const u of [pagina, semBusca, new URL(pagina).origin + '/']) if (!tentativas.includes(u)) tentativas.push(u);
   }
+
+  let ultimo = 'sem resposta';
+  for (const redirect of tentativas) {
+    const url = redirect === null ? base : `${base}&redirect_uri=${encodeURIComponent(redirect)}`;
+    let j: { access_token?: string; error?: { message?: string } } | null;
+    try {
+      const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(20_000) });
+      j = (await res.json().catch(() => null)) as typeof j;
+    } catch {
+      return { erro: 'Não consegui falar com a Meta para trocar o código. Tente de novo.' };
+    }
+    if (j?.access_token) {
+      if (redirect !== null) console.info(`[meta-conexao] código trocado com redirect_uri=${redirect}`);
+      return { token: String(j.access_token) };
+    }
+    ultimo = j?.error?.message ?? 'sem resposta';
+    if (!/redirect_uri/i.test(ultimo)) break;
+    console.warn(`[meta-conexao] troca recusada (redirect_uri=${redirect ?? 'nenhum'}): ${ultimo}`);
+  }
+  return { erro: `A Meta não trocou o código: ${ultimo}. Conecte de novo — o código vale poucos segundos.` };
 }
 
 /**
@@ -164,6 +189,8 @@ async function descobrirNumero(wabaId: string, token: string): Promise<{ phoneId
  */
 export async function conectarNumero(p: {
   code: string;
+  /** Endereço da página que abriu a janela — candidato a redirect_uri na troca. */
+  paginaUrl?: string | null;
   /** Vazios quando a janela não mandou os ids — aí são descobertos pelo token. */
   wabaId?: string | null;
   phoneId?: string | null;
@@ -179,7 +206,7 @@ export async function conectarNumero(p: {
   const pin = String(p.pin ?? '').trim();
   if (pin && !/^\d{6}$/.test(pin)) return { erro: 'O PIN tem 6 números.' };
 
-  const troca = await trocarCodigo(p.code);
+  const troca = await trocarCodigo(p.code, p.paginaUrl);
   if ('erro' in troca) return troca;
   const token = troca.token;
 

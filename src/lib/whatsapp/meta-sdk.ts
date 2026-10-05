@@ -113,6 +113,7 @@ export async function conectarPelaMeta(o: OpcoesConexao): Promise<{ conexao: Con
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         code,
+        paginaUrl: window.location.href,
         wabaId: s?.waba_id || null,
         phoneId: s?.phone_number_id || null,
         modo: o.modo,
