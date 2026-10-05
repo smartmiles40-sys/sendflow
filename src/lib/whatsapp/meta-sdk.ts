@@ -37,7 +37,7 @@ function carregarSdk(appId: string): Promise<Fb> {
   if (sdk) return sdk;
   sdk = new Promise<Fb>((resolve, reject) => {
     window.fbAsyncInit = () => {
-      window.FB!.init({ appId, autoLogAppEvents: true, xfbml: false, version: 'v23.0' });
+      window.FB!.init({ appId, autoLogAppEvents: true, xfbml: false, version: 'v26.0' });
       resolve(window.FB!);
     };
     const s = document.createElement('script');
@@ -90,10 +90,13 @@ export async function conectarPelaMeta(o: OpcoesConexao): Promise<{ conexao: Con
         config_id: o.configId,
         response_type: 'code',
         override_default_response_type: true,
+        // Cadastro Incorporado v4: o formato antigo (com `setup` e sem `version`) sai
+        // em 15/10/2026. Idêntico ao que o QS usa desde 28/09 (link do configurador
+        // da Meta). O sessionInfoVersion é o que faz a janela devolver os ids.
         extras: {
-          setup: {},
-          sessionInfoVersion: '3',
           ...(o.modo === 'coexistencia' ? { featureType: 'whatsapp_business_app_onboarding' } : {}),
+          sessionInfoVersion: '3',
+          version: 'v4',
         },
       });
     });
